@@ -91,7 +91,10 @@ compare_set <- insur_train_final[, which(names(insur_train_final) %in% keep_vars
    # MM Condifence Interval = (2.0229291, 2.7302445)
    # A person with a money market account is 2.35 as likely to buy the insurance product as someone who does not have a money market account. 
 ```
-Predictions
+
+Think of an interesting comparison involving multiple predictors. Compute and interpret the odds ratio
+for these two subjects.
+
 ```{r}
 
 summary(compare_set)
@@ -106,23 +109,13 @@ diff(predict(insur_fit, newdata = new1, type = "response"))
 
 ```
 
-Think of an interesting comparison involving multiple predictors. Compute and interpret the odds ratio
-for these two subjects.
-
-```{r}
-### likelihood ratio test
-# let's do the LRT comparing our original model to one without smoking and race
-#fit2 <- glm(low ~ age + lwt, data = lowbwt, family = binomial)
-#anova(fit, fit2, test = "LRT")
-```
-
 The dataset has several variables that might have redundant information (e.g., money market account
 and money market balance) or might be indicative of the same underlying phenomenon (e.g., teller
 visits and phone number banking could represent something like actual human contact with the bank).
 Is anything like this in your model? If so, why do you feel like you need to keep both? (There's no
 right or wrong answer.)
 
-```
+```{r}
 
 
 
