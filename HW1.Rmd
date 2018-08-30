@@ -13,9 +13,14 @@ transforming/combining them in some sensible way if you can think of one. Feel f
 crosstabulation tables between some sets of two predictors as well to see if anything jumps out.
 
 ```{r}
+
 #install.packages('forecast',dependencies = T)
 #install.packages('tseries')
 #install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
+#install.packages("gmodels")
+#install.packages("car")
+library(car)
+library(gmodels)
 library(forecast)
 library(haven)
 library(fma)
@@ -23,11 +28,11 @@ library(expsmooth)
 library(lmtest)
 library(zoo)
 library(seasonal)
-file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/HW1/'
+file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/HW1/' # Replace with path to your file
 input.file1 <- "insurance_t.sas7bdat"
 input.file2 <- "insurance_v.sas7bdat"
 
-insur_train <- read_sas(paste(file.dir, input.file1,sep = ""))
+insur_train <- read_sas(paste(file.dir, input.file1,sep = "")) # Read in training set
 insur_valid <- read_sas(paste(file.dir, input.file2, sep = ""))
 
 summary(insur_train)
@@ -36,15 +41,14 @@ table(is.na(insur_train))
 # For NAs, need to remove PHONE, POS, POSAMT, INV, INVBAL, CC, CCBAL, CCPURC, INCOME, HMOWN, LORES, HMVAL, AGE
 
 drop_vars <- c("CRSCORE", "ACCTAGE","PHONE", "POS", "POSAMT", "INV", "INVBAL", "CC", "CCBAL", "CCPURC", "INCOME", "HMOWN", "LORES", "HMVAL", "AGE")
-insur_train_drop_na <- insur_train[, -which(names(insur_train) %in% drop_vars)]
+insur_train_drop_na <- insur_train[, -which(names(insur_train) %in% drop_vars)] # Drops variables with names matching the above variable
 summary(insur_train_drop_na)
 
-hist(insur_train_drop_na$CASHBK)
-sum(insur_train_drop_na$SDB)/8495
+hist(insur_train_drop_na$CASHBK) # Create histograms to check for distribution of values
+sum(insur_train_drop_na$SDB)/8495 # Sum to see proportion of 0s/1s
 
-# For narrow distributions, look at DDA (81% 1s, 19% 0s) DIRDEP (29% 1s, 71% 0s), SAV (46% 1s, 54% 0s), ATM (60% 1s, 40% 0s), CD (12% 1s, 88% 0s), MM (12% 1s, 88% 0s)
-# Drop - CASHBK, NSF, IRA, LOC, ILS, MTG, MOVED, INAREA, SDB
-##### drop nsfamt, irabal, locbal, ilsbal, mtgbal, 
+
+# Because of narrow distributions, drop CASHBK, NSF, IRA, LOC, ILS, MTG, MOVED, INAREA, SDB and also corresponding variables NSFAMT, IRABAL, LOCBAL, ILSBAL, MTGBAL 
 
 drop_vars_2 <- c("CASHBK", "NSF", "NSFAMT", "IRA", "IRABAL", "LOC", "LOCBAL", "ILS", "ILSBAL", "MTG", "MTGBAL","MOVED", "INAREA", "SDB")
 insur_train_final <- insur_train_drop_na[, -which(names(insur_train_drop_na) %in% drop_vars_2)]
@@ -52,14 +56,9 @@ insur_train_final <- insur_train_drop_na[, -which(names(insur_train_drop_na) %in
 hist(insur_train_drop_na$LOCBAL)
 sum(insur_train_drop_na$SDB)/8495
 
-
-
-install.packages("gmodels")
-library(gmodels)
 CrossTable(insur_train_drop_na$BRANCH, insur_train_drop_na$INS, prop.r=FALSE, prop.c=TRUE,
-           prop.t=FALSE, prop.chisq=FALSE)
+           prop.t=FALSE, prop.chisq=FALSE) # Create cross tabulation as necessary
 
-# test for multicollinearity
 ```
 
 Which of your predictors (continuous and categorical) do you think might be important to your problem?
@@ -69,62 +68,42 @@ off test results to decide what goes into your model, that's fine.) Give an inte
 confidence interval) of the odds ratio for the predictor with the largest estimate (in magnitude).
 
 ```{r}
-# fit GLMs using glm()
-# family specifies data distribution, and link function goes in parentheses
-install.packages("car")
-library(car)
-insur_ref <- glm(INS ~ DDA + DDABAL + DEP + DEPAMT + CHECKS + DIRDEP + TELLER + SAV + SAVBAL + ATM + ATMAMT + CD + CDBAL + MM + MMCRED + BRANCH + RES,
-           data = insur_train_final, family = binomial(link = "logit"))
+
+insur_ref <- glm(INS ~ DDA + DDABAL + DEP + DEPAMT + CHECKS + DIRDEP + TELLER + SAV + SAVBAL + ATM + ATMAMT + CD + CDBAL + MM + MMCRED,
+           data = insur_train_final, family = binomial(link = "logit")) # Create the reference model with all variables left excluding branch location and urban/suburban based on group discussion
 summary(insur_ref)
-vif(insur_ref)
+vif(insur_ref) # Check for multicollinearity, remove variables as needed
+
 # Drop MMBAL because of collinearity with MM
-insur_fit <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATM + ATMAMT + CD + CDBAL + MM + MMCRED,
-           data = insur_train_final, family = binomial(link = "logit"))
-anova(insur_ref, insur_fit, test = "LRT")   
-   summary(insur_fit)
-# get profile likelihood CI. if you load the MASS package, it will get the profile likelihood CIs by default
 
-exp(confint(fit)) # since we're exponentiating, these are the CIs for the odds ratios
+insur_fit <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM,
+           data = insur_train_final, family = binomial(link = "logit")) # Create model using backwards selection and test to see which variables need to be removed
+anova(insur_ref, insur_fit, test = "LRT") # Analyze LRT between full model and newly fit model
+summary(insur_fit)
 
+exp(max(insur_fit$coefficients)) # MM has the largest estimate of 2.349813
+exp(confint(insur_fit)) # Since we're exponentiating, these are the CIs 
+
+keep_vars <- c("DDA", "DDABAL", "DEP", "CHECKS", "TELLER", "SAV", "SAVBAL", "ATMAMT", "CD", "CDBAL", "MM","INS")
+compare_set <- insur_train_final[, which(names(insur_train_final) %in% keep_vars)] # Create final set with variables in the last model to use to create new test cases
+
+# For the odds ratios, interepretations are 
+   # MM Condifence Interval = (2.0229291, 2.7302445)
+   # A person with a money market account is 2.35 as likely to buy the insurance product as someone who does not have a money market account. 
 ```
 Predictions
 ```{r}
-### making predictions
-# create a new dataset of the subjects we'd like to compare
-# here, we're looking two 30-y/o, 130lb women, one is Black and smokes, the
-# other is White and doesn't smoke
-#newdata <- data.frame(age = c(30, 30),
-                      #lwt = c(130, 130),
-                      #race = c("black", "white"),
-                      #smoke = c(1, 0))
-# type = "link" will return the predicted log(odds) for each of these subjects
-#predict(fit, newdata = newdata, type = "link")
-# so to get the odds ratio, we need to exponentiate that
-#exp(predict(fit, newdata = newdata, type = "link"))
-# the diff() function is the second value minus the first
-# so the following statement is comparing the White non-smoker
-# to the Black smoker
-#exp(diff(predict(fit, newdata = newdata, type = "link")))
 
-# for probabilities, we need to use type = "response"
-#predict(fit, newdata = newdata, type = "response")
-#diff(predict(fit, newdata = newdata, type = "response"))
+summary(compare_set)
+new1 <- data.frame(DDA = c(1,1), DDABAL = c(563.42, 563.2), DEP = c(2.131,2.131), CHECKS = c(2,2), TELLER = c(0,0), SAV = c(0,0), SAVBAL = c(0,0),ATMAMT = c(119.9,119.9),CD=c(0,1),CDBAL=c(0,20000),MM=c(0,1))
 
-### plotting predicted probabilities
-# visreg() will plot predicted probabilities for one predictor at whatever
-# levels of the other predictors you set
-# the first argument is your model
-# the second is the predictor you're interested in
-# the "by" argument will plot separate lines for each level of the "by" variable,
-# and the "overlay" option will put them all on the same graph. so here, we'll
-# get a line for each race
-# scale = "response" tells it to plot the probabilities rather than log(odds)
-# the "cond" argument is where you specify the levels of the other predictors.
-# by default, if left unspecified, it will use the median of the continuous
-# predictors and the most frequent category of categorical predictors
-#visreg(fit, "age", by = "race", scale = "response",
-       #cond = list(smoke = 0, lwt = 130),
-       #overlay = TRUE)
+exp(predict(insur_fit, newdata = new1, type = "link")) # Gets the prediction for each individual new test case.
+
+exp(diff(predict(insur_fit, newdata = new1, type = "link"))) # Interpretation of test cases - An average person is 6.86 times less likely to have an annuity than someone who is average except for having a CD with balance $20,000 and an MM.
+
+# Probabilities
+diff(predict(insur_fit, newdata = new1, type = "response"))
+
 ```
 
 Think of an interesting comparison involving multiple predictors. Compute and interpret the odds ratio
@@ -158,8 +137,10 @@ is challenging to do accurately and beyond the scope of this class, so for now w
 aside from noting it here.
 
 ```{r}
-# 15 of the predictors have missing values. 
+
 insur_train$All_NA <- apply(insur_train[,1:48], 1, anyNA)
 sum(insur_train$All_NA)
+# None of our final predictors have missing values. 
 # 3034 entries had a null value in one or more column. 
+
 ```
