@@ -13,7 +13,7 @@ transforming/combining them in some sensible way if you can think of one. Feel f
 crosstabulation tables between some sets of two predictors as well to see if anything jumps out.
 
 ```{r}
-
+install.packages('descr')
 #install.packages('forecast',dependencies = T)
 #install.packages('tseries')
 #install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
@@ -28,6 +28,7 @@ library(expsmooth)
 library(lmtest)
 library(zoo)
 library(seasonal)
+library(descr)
 file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/HW1/' # Replace with path to your file
 input.file1 <- "insurance_t.sas7bdat"
 input.file2 <- "insurance_v.sas7bdat"
