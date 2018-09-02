@@ -9,12 +9,13 @@
 #################################
 
 #install.packages('forecast',dependencies = T)
-#install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries'))
+#install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr'))
 library(car)
 library(gmodels)
 library(forecast)
 library(haven)
 library(fma)
+library(descr)
 library(expsmooth)
 library(lmtest)
 library(zoo)
