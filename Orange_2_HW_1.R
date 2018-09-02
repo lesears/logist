@@ -23,9 +23,7 @@ options(scipen=999) # Improve readability of parameter estimates
 
 file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/HW1/' # Replace with path to your file
 input.file1 <- "insurance_t.sas7bdat"
-
 insur_train <- read_sas(paste(file.dir, input.file1,sep = "")) # Read in training set
-
 summary(insur_train) # Summarize to check for missing values and descriptive statistics
 
 drop_vars <- c("CRSCORE", "ACCTAGE","PHONE", "POS", "POSAMT", "INV", "INVBAL", "CC", "CCBAL", "CCPURC", "INCOME", "HMOWN", "LORES", "HMVAL", "AGE") # Remove all columns having missing values
@@ -65,8 +63,7 @@ exp(predict(insur_fit, newdata = new1, type = "link")) # Gets the prediction for
 
 exp(diff(predict(insur_fit, newdata = new1, type = "link"))) # Interpretation of test cases - An average person is 6.72 times less likely to have an annuity than someone who is average except for having a CD with balance $20,000 and an MM.
 
-# Probabilities
-diff(predict(insur_fit, newdata = new1, type = "response"))
+diff(predict(insur_fit, newdata = new1, type = "response")) # Probabilities
 
 insur_train$All_NA <- apply(insur_train[,1:48], 1, anyNA)
 sum(insur_train$All_NA) # None of our final predictors have missing values, but 3034 entries had a null value in one or more column.
