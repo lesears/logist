@@ -1,0 +1,14 @@
+We’d like to make this process more efficient by either knowing which projects to bid on or gaining insight into
+why we’ve won the projects that we have in the past. With this information, we could make more informed
+decisions on whether or not to invest time and money in bidding on different projects. We are asking your
+consultant group to build a model to predict the probability of our company winning a project bid.
+
+load data data
+```{r}
+```
+Explore variables
+```{r}
+```
+Model Selection
+```{r}
+````
