@@ -1,0 +1,58 @@
+Time Series Hw#2
+The US Department of Agriculture’s program on Water, Sustainability and Climate (hereafter the"client”)
+is seeking proposals for predicting monthly well water height.The scope of services includes
+the following:
+```{r}
+install.packages('forecast',dependencies = T)
+install.packages('tseries')
+install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
+library(forecast)
+library(haven)
+library(fma)
+library(expsmooth)
+library(lmtest)
+library(zoo)
+library(seasonal)
+file.dir <- "C:/Users/Laney/Documents/Data/"
+input.file1 <- "file1"
+data <- read.csv(paste(file.dir, input.file1,sep = ""))
+
+```
+ Creation of a monthly ESM forecast with using the last 6 months as a test set to demonstrate the accuracy of the model.
+```{r}
+# Creating Time Series Data Objects #
+time_Series <- ts(data, start = 1990, frequency = 12)
+#smoothing model#
+
+```
+Creation of easy to read and interpret visualizations of the following:
+-Actual well water values overlaid with the trend/cycle for the training set.
+-Actual well water values overlaid with the seasonally adjusted water values for the
+training set.
+-For the trend/cycle and seasonal breakdown, indicate whether classical or STL
+decomposition was used and why this technique was chosen.
+```{r}
+#plot functions#
+
+```
+Plot of the predicted versus actual for the test data.
+```{r}
+```
+-The client’s analysts are open to either additive or multiplicative ESM’s; However, the reasons
+for choosing either must be clearly stated and supported.
+-The client uses Mean Absolute Percentage Error (MAPE) in calculating the accuracy of its
+forecasts; Report this measure for the 6 monthly forecasted well water values; The client is open
+to other measurements in addition to the MAPE as long as they are clearly stated and
+supported.
+```{r}
+#####Using a holdout data set:Example with error#
+training=subset(Passenger,end=length(Passenger)-12)
+test=subset(Passenger,start=length(Passenger)-11)
+HWES.USAir.train <- hw(training, seasonal = "multiplicative",initial='optimal')
+test.results=forecast(HWES.USAir.train,h=12)
+
+error=test-test.results$mean
+MAE=mean(abs(error))
+MAPE=mean(abs(error)/abs(test))
+```
+
