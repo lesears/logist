@@ -1,58 +1,68 @@
-Time Series Hw#2
-The US Department of Agriculture’s program on Water, Sustainability and Climate (hereafter the"client”)
-is seeking proposals for predicting monthly well water height.The scope of services includes
-the following:
-```{r}
-install.packages('forecast',dependencies = T)
-install.packages('tseries')
-install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
+setwd('C:\\Users\\Laney\\Documents\\Data')
+
+library(readxl)
+library(zoo)
 library(forecast)
 library(haven)
 library(fma)
 library(expsmooth)
 library(lmtest)
-library(zoo)
 library(seasonal)
-file.dir <- "C:/Users/Laney/Documents/Data/"
-input.file1 <- "file1"
-data <- read.csv(paste(file.dir, input.file1,sep = ""))
 
-```
- Creation of a monthly ESM forecast with using the last 6 months as a test set to demonstrate the accuracy of the model.
-```{r}
-# Creating Time Series Data Objects #
-time_Series <- ts(data, start = 1990, frequency = 12)
-#smoothing model#
+df <- read.csv("Time Corrected Well Data.csv", header = TRUE)
 
-```
-Creation of easy to read and interpret visualizations of the following:
--Actual well water values overlaid with the trend/cycle for the training set.
--Actual well water values overlaid with the seasonally adjusted water values for the
-training set.
--For the trend/cycle and seasonal breakdown, indicate whether classical or STL
-decomposition was used and why this technique was chosen.
-```{r}
-#plot functions#
+#change to date format
+df$monthday <- as.Date(df$UTC.Date , "%m/%d/%Y")
 
-```
-Plot of the predicted versus actual for the test data.
-```{r}
-```
--The client’s analysts are open to either additive or multiplicative ESM’s; However, the reasons
-for choosing either must be clearly stated and supported.
--The client uses Mean Absolute Percentage Error (MAPE) in calculating the accuracy of its
-forecasts; Report this measure for the 6 monthly forecasted well water values; The client is open
-to other measurements in addition to the MAPE as long as they are clearly stated and
-supported.
-```{r}
-#####Using a holdout data set:Example with error#
-training=subset(Passenger,end=length(Passenger)-12)
-test=subset(Passenger,start=length(Passenger)-11)
-HWES.USAir.train <- hw(training, seasonal = "multiplicative",initial='optimal')
-test.results=forecast(HWES.USAir.train,h=12)
+#take substring of month to remove day element
+df$month <- substr(df$monthday, 1, 7)
 
-error=test-test.results$mean
-MAE=mean(abs(error))
-MAPE=mean(abs(error)/abs(test))
-```
+#aggregate hourly data to monthly
+df_monthly <- aggregate(df[, 6], list(df$month), mean)
+
+#check for missing values - there are no missing
+#values in either of our datasets
+table(is.na(df))
+table(is.na(df_monthly))
+
+#create test set of last 6 months
+df_test <- df_monthly[124:129,]
+df_train <- df_monthly[1:123,]
+
+#creation of time series object
+wells <- ts(df_train$x, start=c(2007,10), frequency =12)
+
+#time series decomposition
+decomp_stl <- stl(wells, s.window = 7)
+plot(decomp_stl)
+
+plot(wells, col = "black", main = "Well Depth - Trend/Cycle", xlab = "", ylab = "Corrected Measurement", lwd = 2)
+lines(decomp_stl$time.series[,2], col = "red", lwd = 2)
+
+new= wells-decomp_stl$time.series[,1]
+plot(wells, col = "black", main = "Well Depth - Trend/Cycle", xlab = "", ylab = "Corrected Measurement", lwd = 2)
+lines(new,col='red',lwd=2)
+ 
+#we chose STL: someone explain this
+#holt-winter b/c we don't really have trend but we do have seasonality, no upward trend so we are doing additive model
+model = hw(wells,seasonal = "additive", h = 6)
+summary(model)
+plot(model)
+#AIC 286.67
+
+
+df_train2 <- df_monthly[64:123,]
+wells_interr <- ts(df_train$x, start=c(2013,1), frequency =12)
+model2 = hw(wells_interr,seasonal = "additive", h = 6)
+summary(model2)
+plot(model2)
+#AIC 91.92
+
+#model2 = holt(wells,seasonal = 'additive', h = 6)
+#summary(model2)
+#plot(model2)
+
+#predicted versus actual 
+
+plot(model$mean,df_test$x)
 
