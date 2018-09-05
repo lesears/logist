@@ -36,8 +36,20 @@ wells <- ts(df_train$x, start=c(2007,10), frequency =12)
 decomp_stl <- stl(wells, s.window = 7)
 plot(decomp_stl)
 
+# Actual well water values overlaid with the trend/cycle for the training set.
 plot(wells, col = "black", main = "Well Depth - Trend/Cycle", xlab = "", ylab = "Corrected Measurement", lwd = 2)
 lines(decomp_stl$time.series[,2], col = "red", lwd = 2)
+
+#take values from well and trend, export to csv so that we
+#can make pretty graphs in excel?
+write.csv(as.data.frame(wells),"test.csv")
+write.csv(as.data.frame(decomp_stl$time.series[,2]),"test1.csv")
+wells1 <- read.csv("test.csv", header = TRUE)
+trend1 <- read.csv("test1.csv", header = TRUE)
+wells1$trend <- trend1$x
+names(wells1) <- c("index", "corrected", "trend")
+wells1$index <- NULL
+write.csv(wells1, 'Well Depth - Trend - Cycle.csv')
 
 new= wells-decomp_stl$time.series[,1]
 plot(wells, col = "black", main = "Well Depth - Trend/Cycle", xlab = "", ylab = "Corrected Measurement", lwd = 2)
