@@ -1,0 +1,240 @@
+HW# LOGISTIC REGRESSION
+
+Using only the training dataset, develop a report about your initial analysis of different factors that
+influence whether or not the customer purchased the insurance product. For any hypothesis testing, pick
+a value of ?? between 0.2 and 0.001, state it, and use it for this entire assignment. If you want to just use
+?? = 0.05, go for it.
+
+Make sure that the report addresses the following issues:
+Before you use the response for anything, look at the distributions of all of your predictors.
+Are there any with a large proportion of missing values? Ignore these variables. Are there any that
+have a very narrow distribution (e.g., almost entirely 0s or entirely 1s)? Consider ignoring these or
+transforming/combining them in some sensible way if you can think of one. Feel free to examine any
+crosstabulation tables between some sets of two predictors as well to see if anything jumps out.
+
+```{r}
+install.packages('descr')
+install.packages('forecast',dependencies = T)
+install.packages('tseries')
+install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
+install.packages("gmodels")
+install.packages("car")
+install.packages("sas7bdat")
+library(car)
+library(gmodels)
+library(forecast)
+library(haven)
+library(fma)
+library(expsmooth)
+library(lmtest)
+library(zoo)
+library(seasonal)
+library(descr)
+library(sas7bdat)
+
+file.dir <- 'C:\\Users\\Ryan Carr\\OneDrive\\Documents\\MSA\\Logistic Regression\\MSA2019LogisticData\\data\\' # Replace with path to your file
+input.file1 <- "insurance_t.sas7bdat"
+input.file2 <- "insurance_v.sas7bdat"
+
+insur_train <- read.sas7bdat(paste(file.dir, input.file1,sep = "")) # Read in training set
+insur_valid <- read.sas7bdat(paste(file.dir, input.file2, sep = ""))
+
+summary(insur_train)
+table(is.na(insur_train))
+apply(insur_train, 2, function(col)sum(is.na(col))/length(col))
+str(insur_train)
+
+# For NAs, need to remove PHONE, POS, POSAMT, INV, INVBAL, CC, CCBAL, CCPURC, INCOME, HMOWN, LORES, HMVAL, AGE
+
+drop_vars <- c("CRSCORE", "ACCTAGE","PHONE", "POS", "POSAMT", "INV", "INVBAL", "CC", "CCBAL", "CCPURC", "INCOME", "HMOWN", "LORES", "HMVAL", "AGE")
+insur_train_drop_na <- insur_train[, -which(names(insur_train) %in% drop_vars)] # Drops variables with names matching the above variable
+summary(insur_train_drop_na)
+
+hist(insur_train_drop_na$CASHBK) # Create histograms to check for distribution of values
+sum(insur_train_drop_na$SDB)/8495 # Sum to see proportion of 0s/1s
+
+
+# Because of narrow distributions, drop CASHBK, NSF, IRA, LOC, ILS, MTG, MOVED, INAREA, SDB and also corresponding variables NSFAMT, IRABAL, LOCBAL, ILSBAL, MTGBAL 
+
+drop_vars_2 <- c("CASHBK", "NSF", "NSFAMT", "IRA", "IRABAL", "LOC", "LOCBAL", "ILS", "ILSBAL", "MTG", "MTGBAL","MOVED", "INAREA", "SDB")
+insur_train_final <- insur_train_drop_na[, -which(names(insur_train_drop_na) %in% drop_vars_2)]
+
+hist(insur_train_drop_na$LOCBAL)
+sum(insur_train_drop_na$SDB)/8495
+
+CrossTable(insur_train_drop_na$BRANCH, insur_train_drop_na$INS, prop.r=FALSE, prop.c=TRUE,
+           prop.t=FALSE, prop.chisq=FALSE) # Create cross tabulation as necessary
+
+```
+
+Which of your predictors (continuous and categorical) do you think might be important to your problem?
+Why? This can be based on subject knowledge, literature, test results, or whatever you feel might be
+important. Fit a logistic regression model with these variables. (If you have no idea and are only going
+off test results to decide what goes into your model, that's fine.) Give an interpretation (including the
+confidence interval) of the odds ratio for the predictor with the largest estimate (in magnitude).
+
+```{r}
+
+insur_ref <- glm(INS ~ DDA + DDABAL + DEP + DEPAMT + CHECKS + DIRDEP + TELLER + SAV + SAVBAL + ATM + ATMAMT + CD + CDBAL + MM + MMCRED,
+           data = insur_train_final, family = binomial(link = "logit")) # Create the reference model with all variables left excluding branch location and urban/suburban based on group discussion
+summary(insur_ref)
+vif(insur_ref) # Check for multicollinearity, remove variables as needed
+
+# Drop MMBAL because of collinearity with MM
+
+insur_fit <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
+           data = insur_train_final, family = binomial(link = "logit")) # Create model using backwards selection and test to see which variables need to be removed
+anova(insur_ref, insur_fit, test = "LRT") # Analyze LRT between full model and newly fit model
+summary(insur_fit)
+options(scipen=999)
+confint(insur_fit)
+exp(max(insur_fit$coefficients)) # MM has the largest estimate of 2.3207
+exp(confint(insur_fit)) # Since we're exponentiating, these are the CIs 
+
+keep_vars <- c("DDA", "DDABAL", "DEP", "CHECKS", "TELLER", "SAV", "SAVBAL", "ATMAMT", "CD", "CDBAL", "MM","ATM","INS")
+compare_set <- insur_train_final[, which(names(insur_train_final) %in% keep_vars)] # Create final set with variables in the last model to use to create new test cases
+
+# For the odds ratios, interepretations are 
+   # A person with a money market account is 2.32 as likely to buy the insurance product as someone who does not have a money market account. 
+```
+
+Think of an interesting comparison involving multiple predictors. Compute and interpret the odds ratio
+for these two subjects.
+
+```{r}
+
+summary(compare_set)
+new1 <- data.frame(DDA = c(1,1), DDABAL = c(563.42, 563.2), DEP = c(2.131,2.131), CHECKS = c(2,2), TELLER = c(0,0), SAV = c(0,0), SAVBAL = c(0,0),ATMAMT = c(119.9,119.9),CD=c(0,1),CDBAL=c(0,20000),MM=c(0,1), ATM=c(0,0))
+
+
+exp(predict(insur_fit, newdata = new1, type = "link")) # Gets the prediction for each individual new test case.
+
+exp(diff(predict(insur_fit, newdata = new1, type = "link"))) # Interpretation of test cases - An average person is 6.72 times less likely to have an annuity than someone who is average except for having a CD with balance $20,000 and an MM.
+
+# Probabilities
+diff(predict(insur_fit, newdata = new1, type = "response"))
+
+
+```
+
+The dataset has several variables that might have redundant information (e.g., money market account
+and money market balance) or might be indicative of the same underlying phenomenon (e.g., teller
+visits and phone number banking could represent something like actual human contact with the bank).
+Is anything like this in your model? If so, why do you feel like you need to keep both? (There's no
+right or wrong answer.)
+
+```{r}
+
+
+
+```
+
+How many of your predictors have missing values? Earlier, you ignored predictors with a large number
+of missing values, which is a perfectly valid thing to do-the idea being that they might be likely to
+be missing in the future as well and thus may not be useful for the application of your model.1 How
+many observations have missing values? You should keep in mind and make a note of how much of
+your sample is being discarded when we only do a complete case analysis. Dealing with missing values
+is challenging to do accurately and beyond the scope of this class, so for now we won't worry about it
+aside from noting it here.
+
+```{r}
+
+insur_train$All_NA <- apply(insur_train[,1:48], 1, anyNA)
+sum(insur_train$All_NA)
+# None of our final predictors have missing values. 
+# 3034 entries had a null value in one or more column. 
+
+```
+Make sure to check for separation and adjust accordingly. This may or may not change your
+model.
+```{r}
+install.packages("brglm2")
+library(brglm2)
+insur_fit_sep <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD +            CDBAL + MM + ATM,
+           data = insur_train_final,
+           family = binomial(link = "logit"),
+           method = "detect_separation")
+insur_fit_sep
+
+```
+Check the linearity assumption for any continuous variables in your model that you suspect might
+have a nonlinear effect. Make any corrections necessary. Don't forget model hierarchy.
+```{r}
+library(visreg)
+library(ggplot2)
+
+insur_fit_subdda <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
+           data = insur_train_final, family = binomial(link = "logit"),subset=DDABAL<25000)
+
+visreg(insur_fit_subdda, "DDABAL", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "partial residual plot for DDABAL subset DDABAL<25000",
+       x = "DDABAL", y = "partial (deviance) residuals")
+
+visreg(insur_fit, "DDABAL", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "partial residual plot for DDABAL",
+       x = "DDABAL", y = "partial (deviance) residuals")
+
+
+visreg(insur_fit, "SAVBAL", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "partial residual plot for SAVBAL",
+       x = "SAVBAL", y = "partial (deviance) residuals")
+
+visreg(insur_fit, "ATMAMT", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "partial residual plot for ATMAMT",
+       x = "ATMAMT", y = "partial (deviance) residuals")
+
+visreg(insur_fit, "CDBAL", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "partial residual plot for CDBAL",
+       x = "CDBAL", y = "partial (deviance) residuals")
+
+#Assumption of linearity for our continuous variables seems to be ok. Some seem nonlinear for large values, but it's because of influential observations. Also, all our continuous variables are extremely right-skewed...does this make a difference?
+```
+Check interactions between some of your most important main effects or any that you suspect
+would be plausible and see how useful they are according to either AIC or the LRT. Or, if your
+model already has interaction terms, use AIC or the LRT to simultaneously test all terms involving
+the variable which appears most frequently in your model. In either case, don't go beyond
+two-way interactions.
+```{r}
+#Adding interaction between our top two main effects, MM and CD
+insur_fit1 <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD,
+           data = insur_train_final, family = binomial(link = "logit"))
+#anova doesn't work. insur_fit1 is not subset of ref because ref does not have interaction variables.
+anova(insur_ref, insur_fit1, test = "LRT")
+#here insur_fit is a subset because it does not include the interaction. but is this the right way to asses model?
+anova(insur_fit1, insur_fit, test = "LRT")
+cat("AIC for interactions",AIC(insur_fit1),"\nAIC for base",AIC(insur_fit))
+
+
+```
+- Check for influential observations to understand why they are influential (if any are). Whether or
+not to change your model for them is up to you.
+```{r}
+influence.measures(insur_fit)
+
+#investigate observations where cooks D > 4/n...4/8495=0.0004708652...doesn't make sense...may investigate observations that stand out to our eyes
+plot(insur_fit, 4, n.id = 5)
+outlier_index = c(1547, 1721, 4601) 
+compare_set[outlier_index,]
+summary(compare_set)
+
+#do we check dfbetas for continuous variables only?
+dfbetasPlots(insur_fit, terms = "DDABAL", id.n = 5,
+             col = ifelse(insur_fit$y == 1, "red", "blue"))
+
+dfbetasPlots(insur_fit, terms = "SAVBAL", id.n = 5,
+             col = ifelse(insur_fit$y == 1, "red", "blue"))
+
+dfbetasPlots(insur_fit, terms = "ATMAMT", id.n = 5,
+             col = ifelse(insur_fit$y == 1, "red", "blue"))
+
+dfbetasPlots(insur_fit, terms = "CDBAL", id.n = 5,
+             col = ifelse(insur_fit$y == 1, "red", "blue"))
+
+
+```
+
