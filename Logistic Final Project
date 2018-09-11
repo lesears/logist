@@ -1,0 +1,36 @@
+#################################
+#                               #
+#       MSA Class of 2019       #
+#                               #
+#      Logistic Regression      #
+#        Final Project          #
+#        Orange Team 2          #
+#                               #
+#################################
+
+#install.packages('forecast',dependencies = T)
+#install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr'))
+library(car)
+library(gmodels)
+library(forecast)
+library(haven)
+library(fma)
+library(descr)
+library(expsmooth)
+library(lmtest)
+library(zoo)
+library(seasonal)
+options(scipen=999) # Improve readability of parameter estimates
+
+file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/Final Project/' # Replace with path to your file
+input.file1 <- "construction.sas7bdat"
+construction <- read_sas(paste(file.dir, input.file1,sep = "")) # Read in training set
+construction$won <- ifelse(construction$Win_Bid == "Yes",1, 0)
+summary(construction) # Summarize to check for missing values and descriptive statistics
+# Response - Win_Bid = 'Yes'
+
+construction_ref <- glm(won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Bid_Price__Millions_ + Sector + Region_of_Country + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_C + Competitor_D + Competitor_E + Competitor_F + Competitor_G + Competitor_H + Competitor_I + Competitor_J + Winning_Bid_Price__Millions_ + Cost_After_Engineering_Estimate_, data = construction, family = binomial(link = "logit"))
+summary(construction_ref)
+vif(construction_ref)
+
+# Model dispalys linear separation
