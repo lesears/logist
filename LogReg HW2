@@ -32,7 +32,7 @@ library(seasonal)
 library(descr)
 library(sas7bdat)
 
-file.dir <- 'C:\\Users\\Ryan Carr\\OneDrive\\Documents\\MSA\\Logistic Regression\\MSA2019LogisticData\\data\\' # Replace with path to your file
+file.dir <- 'C:\\Users\\Laney\\Documents\\Data\\data\\' # Replace with path to your file
 input.file1 <- "insurance_t.sas7bdat"
 input.file2 <- "insurance_v.sas7bdat"
 
@@ -42,12 +42,17 @@ insur_valid <- read.sas7bdat(paste(file.dir, input.file2, sep = ""))
 summary(insur_train)
 table(is.na(insur_train))
 apply(insur_train, 2, function(col)sum(is.na(col))/length(col))
-str(insur_train)
-
+#str(insur_train)
+summary(insur_valid)
+table(is.na(insur_valid))
+apply(insur_valid, 2, function(col)sum(is.na(col))/length(col))
+#str(insur_valid)
 # For NAs, need to remove PHONE, POS, POSAMT, INV, INVBAL, CC, CCBAL, CCPURC, INCOME, HMOWN, LORES, HMVAL, AGE
 
 drop_vars <- c("CRSCORE", "ACCTAGE","PHONE", "POS", "POSAMT", "INV", "INVBAL", "CC", "CCBAL", "CCPURC", "INCOME", "HMOWN", "LORES", "HMVAL", "AGE")
-insur_train_drop_na <- insur_train[, -which(names(insur_train) %in% drop_vars)] # Drops variables with names matching the above variable
+insur_train_drop_na <- insur_train[, -which(names(insur_train) %in% drop_vars)]
+insur_valid_drop_na <- insur_valid[, -which(names(insur_valid) %in% drop_vars)]
+# Drops variables with names matching the above variable
 summary(insur_train_drop_na)
 
 hist(insur_train_drop_na$CASHBK) # Create histograms to check for distribution of values
@@ -58,6 +63,7 @@ sum(insur_train_drop_na$SDB)/8495 # Sum to see proportion of 0s/1s
 
 drop_vars_2 <- c("CASHBK", "NSF", "NSFAMT", "IRA", "IRABAL", "LOC", "LOCBAL", "ILS", "ILSBAL", "MTG", "MTGBAL","MOVED", "INAREA", "SDB")
 insur_train_final <- insur_train_drop_na[, -which(names(insur_train_drop_na) %in% drop_vars_2)]
+insur_valid_final <- insur_valid_drop_na[, -which(names(insur_valid_drop_na) %in% drop_vars_2)]
 
 hist(insur_train_drop_na$LOCBAL)
 sum(insur_train_drop_na$SDB)/8495
@@ -203,17 +209,28 @@ two-way interactions.
 #Adding interaction between our top two main effects, MM and CD
 insur_fit1 <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD,
            data = insur_train_final, family = binomial(link = "logit"))
+insur_fit2 <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
+           data = insur_train_final, family = binomial(link = "logit"))
 #anova doesn't work. insur_fit1 is not subset of ref because ref does not have interaction variables.
 anova(insur_ref, insur_fit1, test = "LRT")
 #here insur_fit is a subset because it does not include the interaction. but is this the right way to asses model?
 anova(insur_fit1, insur_fit, test = "LRT")
 cat("AIC for interactions",AIC(insur_fit1),"\nAIC for base",AIC(insur_fit))
 
+#AIC worse when you add CD*SAV, p value = 0.5...
+#AIC better when you add MM*SAV, p -value = 0.0002883
+anova(insur_fit1, insur_fit2, test = "LRT")
+cat("AIC for interactions",AIC(insur_fit2),"\nAIC for base",AIC(insur_fit1))
+
+#final model 
+#insur_fit2 <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
+          # data = insur_train_final, family = binomial(link = "logit"))
 
 ```
 – Check for influential observations to understand why they are influential (if any are). Whether or
 not to change your model for them is up to you.
 ```{r}
+
 influence.measures(insur_fit)
 
 #investigate observations where cooks D > 4/n...4/8495=0.0004708652...doesn't make sense...may investigate observations that stand out to our eyes
@@ -237,4 +254,102 @@ dfbetasPlots(insur_fit, terms = "CDBAL", id.n = 5,
 
 
 ```
+```{r}
+insur_v <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
+           data = insur_valid_final, family = binomial(link = "logit"))
+install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
+library(tidyverse)
+library(MASS)
+library(ROCR)
+library(DescTools)
+library(Hmisc)
+pred <- prediction(fitted(insur_v), factor(insur_v$y))
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 
+classif_table <- data.frame(threshold = perf@alpha.values[[1]],
+                         tpr = perf@y.values[[1]],
+                         tnr = 1 - perf@x.values[[1]])
+# youden's index: add weights for tpr (sens) and tnr (spec) if desired
+classif_table$youdenJ <- with(classif_table, tpr + tnr - 1)
+# find row with max
+classif_table[which.max(classif_table$youdenJ),]
+
+#youden = 0.3991937
+#What is its maximum value and the corresponding
+#probability threshold? How many false positives and false negatives do you have?
+
+
+```
+• On the validation data, report the coefficient of discrimination, Brier score, c-statistic, and show the
+ROC curve and classification table. These should be the first things presented in the report.
+For the classification table, use the same cutoff that you found previously.
+
+```{r}
+### c-statistic and Somers' D ###
+# predicted prob goes first, outcome second
+rcorr.cens(fitted(insur_v), insur_v$y)[-c(5, 6, 9)] # ignoring output i don't need
+
+### ROC curves ###
+# the predicted probabilities go first, the actual outcomes (as a factor) second
+pred <- prediction(fitted(insur_v), factor(insur_v$y))
+# then in performance, "measure" is the y-axis, and "x.measure" is the x-axis
+# for a roc curve, we want tpr vs. fpr. "sens" and "spec" also work
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+# then we can plot
+plot(perf, colorize = TRUE)
+# add 45-degree line (random guessing)
+abline(a = 0, b = 1, lty = 2)
+# AUC
+auc <- performance(pred, measure = "auc")@y.values
+
+
+
+```
+
+```{r}
+brier_score <- function(obj, new_x = NULL, new_y = NULL){
+if(is.null(new_y)){
+    y <- obj$y
+  } else {
+    y <- new_y
+  }
+  
+  p_obs <- mean(y)
+  
+  if(any(class(obj) == "glm")){
+    if(is.null(new_x)){
+      p <- predict(obj, newdata = new_x, type = "response")
+      lp <- predict(obj, newdata = new_x, type = "link")
+    } else {
+      lp <- obj$linear
+      p <- fitted(obj)
+    }
+  } else if(is.null(obj$p)) {
+    lp <- obj$lp
+    p <- fitted(obj)
+  } else {
+    p <- obj$p
+    lp <- obj$linear
+  }
+  
+  # brier score
+  brier_score <- mean((y - p)^2)
+  
+  # max brier score is just the observed proportion
+  brier_max <- p_obs*((1 - p_obs)^2) + (1 - p_obs)*(p_obs^2)
+  
+  # scaled brier score
+  # ranges from 0 to 1---lower is better
+  brier_scaled <- brier_score/brier_max
+  # essentially, 1 - brier_scaled is the %improvement over null model
+  
+  res <- data.frame(brier_score = brier_score,
+                   brier_max = brier_max,
+                   brier_scaled = brier_scaled)
+  res
+}
+
+brier_score(insur_v)
+#0.8585055
+
+```
