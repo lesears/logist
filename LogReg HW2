@@ -13,13 +13,13 @@ transforming/combining them in some sensible way if you can think of one. Feel f
 crosstabulation tables between some sets of two predictors as well to see if anything jumps out.
 
 ```{r}
-install.packages('descr')
-install.packages('forecast',dependencies = T)
-install.packages('tseries')
-install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
-install.packages("gmodels")
-install.packages("car")
-install.packages("sas7bdat")
+#install.packages('descr')
+#install.packages('forecast',dependencies = T)
+#install.packages('tseries')
+#install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma'))
+#install.packages("gmodels")
+#install.packages("car")
+#install.packages("sas7bdat")
 library(car)
 library(gmodels)
 library(forecast)
@@ -32,7 +32,7 @@ library(seasonal)
 library(descr)
 library(sas7bdat)
 
-file.dir <- 'C:\\Users\\Laney\\Documents\\Data\\data\\' # Replace with path to your file
+file.dir <- 'C:\\Users\\chels\\Desktop\\MSA\\Fall 1\\Logistic Regression\\MSA2019LogisticData\\data\\' # Replace with path to your file
 input.file1 <- "insurance_t.sas7bdat"
 input.file2 <- "insurance_v.sas7bdat"
 
@@ -70,6 +70,10 @@ sum(insur_train_drop_na$SDB)/8495
 
 CrossTable(insur_train_drop_na$BRANCH, insur_train_drop_na$INS, prop.r=FALSE, prop.c=TRUE,
            prop.t=FALSE, prop.chisq=FALSE) # Create cross tabulation as necessary
+
+```
+
+```{r}
 
 ```
 
@@ -154,9 +158,9 @@ sum(insur_train$All_NA)
 Make sure to check for separation and adjust accordingly. This may or may not change your
 model.
 ```{r}
-install.packages("brglm2")
+#install.packages("brglm2")
 library(brglm2)
-insur_fit_sep <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD +            CDBAL + MM + ATM,
+insur_fit_sep <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
            data = insur_train_final,
            family = binomial(link = "logit"),
            method = "detect_separation")
@@ -169,13 +173,13 @@ have a nonlinear effect. Make any corrections necessary. Don’t forget model hi
 library(visreg)
 library(ggplot2)
 
-insur_fit_subdda <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
-           data = insur_train_final, family = binomial(link = "logit"),subset=DDABAL<25000)
+#insur_fit_subdda <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
+#           data = insur_train_final, family = binomial(link = "logit"),subset=DDABAL<25000)
 
-visreg(insur_fit_subdda, "DDABAL", gg = TRUE, points = list(col = "black")) +
-  geom_smooth(col = "red", fill = "red") + theme_bw() +
-  labs(title = "partial residual plot for DDABAL subset DDABAL<25000",
-       x = "DDABAL", y = "partial (deviance) residuals")
+#visreg(insur_fit_subdda, "DDABAL", gg = TRUE, points = list(col = "black")) +
+#  geom_smooth(col = "red", fill = "red") + theme_bw() +
+#  labs(title = "partial residual plot for DDABAL subset DDABAL<25000",
+#       x = "DDABAL", y = "partial (deviance) residuals")
 
 visreg(insur_fit, "DDABAL", gg = TRUE, points = list(col = "black")) +
   geom_smooth(col = "red", fill = "red") + theme_bw() +
@@ -222,6 +226,9 @@ cat("AIC for interactions",AIC(insur_fit1),"\nAIC for base",AIC(insur_fit))
 anova(insur_fit1, insur_fit2, test = "LRT")
 cat("AIC for interactions",AIC(insur_fit2),"\nAIC for base",AIC(insur_fit1))
 
+anova(insur_fit2, insur_fit1, test = "LRT")
+cat("AIC for interactions",AIC(insur_fit2),"\nAIC for base",AIC(insur_fit1))
+
 #final model 
 #insur_fit2 <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
           # data = insur_train_final, family = binomial(link = "logit"))
@@ -257,7 +264,7 @@ dfbetasPlots(insur_fit, terms = "CDBAL", id.n = 5,
 ```{r}
 insur_v <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
            data = insur_valid_final, family = binomial(link = "logit"))
-install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
+#install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
 library(tidyverse)
 library(MASS)
 library(ROCR)
@@ -274,10 +281,26 @@ classif_table$youdenJ <- with(classif_table, tpr + tnr - 1)
 # find row with max
 classif_table[which.max(classif_table$youdenJ),]
 
+
+##Actual classification table (like on slides)
+df <- data.frame(y = insur_v$y,
+                 phat = fitted(insur_v))
+df_new<- data.frame(y = insur_v$y,
+                 yhat = fitted(insur_v))
+for (i in 1:length(df$phat)){
+  if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
+    df_new$yhat[i]=1
+  }
+  else{
+    df_new$yhat[i]=0
+  }
+}
+xtabs(~ yhat+ y, data = df_new)
+
 #youden = 0.3991937
 #What is its maximum value and the corresponding
 #probability threshold? How many false positives and false negatives do you have?
-
+#threshold = 0.316, tpr = 0.751 tnr 0.648
 
 ```
 • On the validation data, report the coefficient of discrimination, Brier score, c-statistic, and show the
@@ -285,9 +308,16 @@ ROC curve and classification table. These should be the first things presented i
 For the classification table, use the same cutoff that you found previously.
 
 ```{r}
+### discrimination slope = mean(p1) - mean(p0) ###
+D <- mean(fitted(insur_v)[insur_v$y == 1]) - mean(fitted(insur_v)[insur_v$y == 0])
+D #0.1366
+
 ### c-statistic and Somers' D ###
 # predicted prob goes first, outcome second
 rcorr.cens(fitted(insur_v), insur_v$y)[-c(5, 6, 9)] # ignoring output i don't need
+# c-stat =0.7373, somers D = 0.4746
+#for all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 73% of the time. 
+
 
 ### ROC curves ###
 # the predicted probabilities go first, the actual outcomes (as a factor) second
