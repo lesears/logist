@@ -85,3 +85,35 @@ construction_train$Bid_Win_Difference[construction_train$Bid_Win_Difference>20]
 boxplot(construction_train$Cost_After_Engineering_Estimate_)
 boxplot(construction_train$Number_of_Competitor_Bids)
 
+
+##Recategorizing Region:
+class(construction_train$Region_of_Country)
+
+prop.table(table(construction_train$Region_of_Country, construction_train$Won),margin = 1)
+table(construction_train$Region_of_Country, construction_train$Won)
+
+construction_train$Region_2[construction_train$Region_of_Country == 'Mid-west'] <- "Region 1"
+construction_train$Region_2[construction_train$Region_of_Country == 'Northeast'] <- "Region 1"
+construction_train$Region_2[construction_train$Region_of_Country == 'Southeast'] <- "Region 2"
+construction_train$Region_2[construction_train$Region_of_Country == 'Southwest'] <- "Region 1"
+construction_train$Region_2[construction_train$Region_of_Country == 'West'] <- "Region 2"
+
+prop.table(table(construction_train$Region_2, construction_train$Won),margin = 1)
+table(construction_train$Region_2, construction_train$Won)
+
+
+
+
+##Recategorizing Sector:
+class(construction_train$Sector)
+
+prop.table(table(construction_train$Sector, construction_train$Won),margin = 1)
+table(construction_train$Sector, construction_train$Won)
+
+construction_train$Sector2 <- 'Sector 2'
+construction_train$Sector2[construction_train$Sector == '4'] <- "Sector 1"
+construction_train$Sector2[construction_train$Sector == '5'] <- "Sector 1"
+construction_train$Sector2[construction_train$Sector == '6'] <- "Sector 1"
+
+prop.table(table(construction_train$Sector2, construction_train$Won),margin = 1)
+table(construction_train$Sector2, construction_train$Won)
