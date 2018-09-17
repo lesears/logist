@@ -21,6 +21,7 @@ library(zoo)
 library(seasonal)
 library(brglm2)
 library(moments)
+library(caret)
 options(scipen=999) # Improve readability of parameter estimates
 
 file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/Final Project/' # Replace with path to your file
@@ -32,8 +33,15 @@ construction$Sector <- as.factor(construction$Sector) # Change Sector to categor
 construction <- subset(construction, select = -Win_Bid)
 summary(construction) # Summarize to check for missing values and descriptive statistics
 
-construction_train <- construction[1:380,] # Partition 70% percent of data into training set (if doing 80/20, this would be 1:434)
-construction_valid <- construction[381:543,] # Partition 30% of data into validation set (if doing 80/20, this would be 435:543)
+#construction_train <- construction[1:380,] # Partition 70% percent of data into training set (if doing 80/20, this would be 1:434)
+#construction_valid <- construction[381:543,] # Partition 30% of data into validation set (if doing 80/20, this would be 435:543)
+
+##creating partitions randomly
+set.seed(1452)
+inTrain <- createDataPartition(y=construction$Won, p=0.70, list=FALSE)
+construction_train <- construction[inTrain,] 
+construction_valid <- construction[-inTrain,]
+
 
 control1 <- glm.control1(maxit = 100) # Need to increase the maximum number of model iterations so that brglm can run successfully
 
