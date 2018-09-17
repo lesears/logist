@@ -70,3 +70,39 @@ construction_train$Bid_Win_Difference[construction_train$Bid_Win_Difference>20]
 
 boxplot(construction_train$Cost_After_Engineering_Estimate_)
 boxplot(construction_train$Number_of_Competitor_Bids)
+
+##model building
+#install.packages('brglm')
+library(brglm)
+construction_ref <- brglm(Won ~  Estimated_Cost__Millions_ +Estimated_Years_to_Complete  + 
+                            Region_of_Country+ Number_of_Competitor_Bids + Competitor_A + 
+                            Competitor_B +  Competitor_E + Competitor_F + Competitor_H + 
+                            Competitor_I + Competitor_J + Bid_Win_Difference + 
+                            Cost_After_Engineering_Estimate_, data = construction_train,
+                          family = binomial(link = "logit"),control1.glm = control1) # This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
+summary(construction_ref)
+
+#step wise AIC
+construction_fit = update(construction_ref, method = 'brglm.fit')
+summary(construction_fit)
+
+construction_select = brglm(Won ~  Estimated_Cost__Millions_   
+                               Number_of_Competitor_Bids + Competitor_J + Bid_Win_Difference + 
+                              Cost_After_Engineering_Estimate_, data = construction_train,
+                            family = binomial(link = "logit"),control1.glm = control1, method = 'brglm.fit') # This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
+summary(construction_select)
+VIF(construction_select)
+
+#try with smaller categories
+construction_ref2 <- brglm(Won ~  Estimated_Cost__Millions_ +Estimated_Years_to_Complete  + 
+                            Region_2+ Number_of_Competitor_Bids + Competitor_A + 
+                            Competitor_B +  Competitor_E + Competitor_F + Competitor_H + 
+                            Competitor_I + Competitor_J + Bid_Win_Difference + 
+                            Cost_After_Engineering_Estimate_, data = construction_train,
+                          family = binomial(link = "logit"),control1.glm = control1) # This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
+summary(construction_ref2)
+
+#step wise AIC
+construction_fit2 = update(construction_ref, method = 'brglm.fit')
+summary(construction_fit2)
+#chooses same variables
