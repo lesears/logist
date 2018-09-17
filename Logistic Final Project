@@ -19,10 +19,12 @@ library(expsmooth)
 library(lmtest)
 library(zoo)
 library(seasonal)
+library(brglm)
 library(brglm2)
 library(moments)
 library(caret)
 options(scipen=999) # Improve readability of parameter estimates
+set.seed(1452) # Set seed to replicate results
 
 file.dir <- '/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Logistic Regression/Final Project/' # Replace with path to your file
 input.file1 <- "construction.sas7bdat"
@@ -30,50 +32,34 @@ construction <- read_sas(paste(file.dir, input.file1,sep = "")) # Read in traini
 construction$Bid_Win_Difference <- round(construction$Bid_Price__Millions_ - construction$Winning_Bid_Price__Millions_,2) # Creating this variable is one way to resolve all multicollinearity
 construction$Won <- ifelse(construction$Win_Bid == "Yes",1,0)
 construction$Sector <- as.factor(construction$Sector) # Change Sector to categorical variable
-construction <- subset(construction, select = -Win_Bid)
+construction <- subset(construction, select = -c(Win_Bid,Competitor_C,Competitor_D,Competitor_G))
 summary(construction) # Summarize to check for missing values and descriptive statistics
 
-#construction_train <- construction[1:380,] # Partition 70% percent of data into training set (if doing 80/20, this would be 1:434)
-#construction_valid <- construction[381:543,] # Partition 30% of data into validation set (if doing 80/20, this would be 435:543)
-
-##creating partitions randomly
-set.seed(1452)
-inTrain <- createDataPartition(y=construction$Won, p=0.70, list=FALSE)
-construction_train <- construction[inTrain,] 
+inTrain <- createDataPartition(y=construction$Won, p=0.70, list=FALSE) # Creating partitions randomly
+construction_train <- construction[inTrain,]
 construction_valid <- construction[-inTrain,]
-
 
 control1 <- glm.control1(maxit = 100) # Need to increase the maximum number of model iterations so that brglm can run successfully
 
-construction_ref <- brglm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Bid_Price__Millions_ + Sector + Region_of_Country + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_C + Competitor_D + Competitor_E + Competitor_F + Competitor_G + Competitor_H + Competitor_I + Competitor_J + Winning_Bid_Price__Millions_ + Cost_After_Engineering_Estimate_, data = construction_train, family = binomial(link = "logit"), control.glm = control1)
-summary(construction_ref)
-vif(construction_ref) # High VIF values for Estimated_Cost_Millions, Bid_Price_Millions, and Winning_Bid_Price_Millions
-
-construction_ref <- brglm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector + Region_of_Country + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_C + Competitor_D + Competitor_E + Competitor_F + Competitor_G + Competitor_H + Competitor_I + Competitor_J + Bid_Win_Difference + Cost_After_Engineering_Estimate_, data = construction_train, family = binomial(link = "logit"), control.glm = control1) # This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
+construction_ref <- brglm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Region_of_Country + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_E + Competitor_F + Competitor_H + Competitor_I + Competitor_J + Bid_Win_Difference + Cost_After_Engineering_Estimate_, data = construction_train, family = binomial(link = "logit"), control.glm = control1) # This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
 summary(construction_ref)
 vif(construction_ref) # No more multicollinearity present
 
-hist(construction$Competitor_C, labels = TRUE) # Bid on 5.6% of total projects
-hist(construction$Competitor_D, labels = TRUE) # Bid on 10.6% of total projects
-# All other variables seem to exhibit appropriate distributions. None seem to require being binned into categories, for example...
 hist(construction$Bid_Price__Millions_) # Replace variable as needed to generate histograms
 
 # Check for skewness and kurtosis
 
-for (i in c(1,2,3,6,7,8,9,10,11,12,13,14,15,16,17,18,19)) {
+for (i in c(1,2,3,6,7,8,9,10,11,12,13,14,15,16)) {
    if (skewness(construction[,i]) > 2) {
       print(skewness(construction[,i]))
    }
 } # Competitors, C, D, and G all have high values here
 
-for (i in c(1,2,3,6,7,8,9,10,11,12,13,14,15,16,17,18,19)) {
+for (i in c(1,2,3,6,7,8,9,10,11,12,13,14,15,16)) {
    if (kurtosis(construction[,i]) > 5) {
       print(kurtosis(construction[,i]))
    }
-} # Five variables of interest - Competitors C, D, and G, Cost After Eng. Estimate, and Bid Win Diff
-
-# Would recommend at least dropping Competitors C and D, can discuss further
-
+}
 
 ##possible outliers...need to recheck in the model
 boxplot(construction_train$Estimated_Years_to_Complete)
@@ -84,36 +70,3 @@ construction_train$Bid_Win_Difference[construction_train$Bid_Win_Difference>20]
 
 boxplot(construction_train$Cost_After_Engineering_Estimate_)
 boxplot(construction_train$Number_of_Competitor_Bids)
-
-
-##Recategorizing Region:
-class(construction_train$Region_of_Country)
-
-prop.table(table(construction_train$Region_of_Country, construction_train$Won),margin = 1)
-table(construction_train$Region_of_Country, construction_train$Won)
-
-construction_train$Region_2[construction_train$Region_of_Country == 'Mid-west'] <- "Region 1"
-construction_train$Region_2[construction_train$Region_of_Country == 'Northeast'] <- "Region 1"
-construction_train$Region_2[construction_train$Region_of_Country == 'Southeast'] <- "Region 2"
-construction_train$Region_2[construction_train$Region_of_Country == 'Southwest'] <- "Region 1"
-construction_train$Region_2[construction_train$Region_of_Country == 'West'] <- "Region 2"
-
-prop.table(table(construction_train$Region_2, construction_train$Won),margin = 1)
-table(construction_train$Region_2, construction_train$Won)
-
-
-
-
-##Recategorizing Sector:
-class(construction_train$Sector)
-
-prop.table(table(construction_train$Sector, construction_train$Won),margin = 1)
-table(construction_train$Sector, construction_train$Won)
-
-construction_train$Sector2 <- 'Sector 2'
-construction_train$Sector2[construction_train$Sector == '4'] <- "Sector 1"
-construction_train$Sector2[construction_train$Sector == '5'] <- "Sector 1"
-construction_train$Sector2[construction_train$Sector == '6'] <- "Sector 1"
-
-prop.table(table(construction_train$Sector2, construction_train$Won),margin = 1)
-table(construction_train$Sector2, construction_train$Won)
