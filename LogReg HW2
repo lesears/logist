@@ -256,10 +256,9 @@ dfbetasPlots(insur_fit, terms = "CDBAL", id.n = 5,
 
 
 ```
-```{r}
-insur_v <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM + MM*CD+MM*SAV,
+insur_v <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
            data = insur_valid_final, family = binomial(link = "logit"))
-install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
+#install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
 library(tidyverse)
 library(MASS)
 library(ROCR)
@@ -276,20 +275,43 @@ classif_table$youdenJ <- with(classif_table, tpr + tnr - 1)
 # find row with max
 classif_table[which.max(classif_table$youdenJ),]
 
-#youden = 0.3991937
+
+##Actual classification table (like on slides)
+df <- data.frame(y = insur_v$y,
+                 phat = fitted(insur_v))
+df_new<- data.frame(y = insur_v$y,
+                 yhat = fitted(insur_v))
+for (i in 1:length(df$phat)){
+  if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
+    df_new$yhat[i]=1
+  }
+  else{
+    df_new$yhat[i]=0
+  }
+}
+xtabs(~ yhat+ y, data = df_new)
+
+#youden = 0.406
 #What is its maximum value and the corresponding
 #probability threshold? How many false positives and false negatives do you have?
-
+#threshold = 0.317, tpr = 0.752 tnr 0.654
 
 ```
-• On the validation data, report the coefficient of discrimination, Brier score, c-statistic, and show the
+. On the validation data, report the coefficient of discrimination, Brier score, c-statistic, and show the
 ROC curve and classification table. These should be the first things presented in the report.
 For the classification table, use the same cutoff that you found previously.
 
 ```{r}
+### discrimination slope = mean(p1) - mean(p0) ###
+D <- mean(fitted(insur_v)[insur_v$y == 1]) - mean(fitted(insur_v)[insur_v$y == 0])
+D #0.1366
+
 ### c-statistic and Somers' D ###
 # predicted prob goes first, outcome second
 rcorr.cens(fitted(insur_v), insur_v$y)[-c(5, 6, 9)] # ignoring output i don't need
+# c-stat =0.7373, somers D = 0.4746
+#for all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 73% of the time. 
+
 
 ### ROC curves ###
 # the predicted probabilities go first, the actual outcomes (as a factor) second
@@ -303,7 +325,7 @@ plot(perf, colorize = TRUE)
 abline(a = 0, b = 1, lty = 2)
 # AUC
 auc <- performance(pred, measure = "auc")@y.values
-
+auc
 
 
 ```
@@ -352,7 +374,7 @@ if(is.null(new_y)){
 }
 
 brier_score(insur_v)
-#0.8585055
+#0.862
 
 ```
 
