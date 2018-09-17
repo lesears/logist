@@ -73,3 +73,15 @@ for (i in c(1,2,3,6,7,8,9,10,11,12,13,14,15,16,17,18,19)) {
 } # Five variables of interest - Competitors C, D, and G, Cost After Eng. Estimate, and Bid Win Diff
 
 # Would recommend at least dropping Competitors C and D, can discuss further
+
+
+##possible outliers...need to recheck in the model
+boxplot(construction_train$Estimated_Years_to_Complete)
+construction_train$Estimated_Years_to_Complete2[construction_train$Estimated_Years_to_Complete>15]
+
+boxplot(construction_train$Bid_Win_Difference)
+construction_train$Bid_Win_Difference[construction_train$Bid_Win_Difference>20]
+
+boxplot(construction_train$Cost_After_Engineering_Estimate_)
+boxplot(construction_train$Number_of_Competitor_Bids)
+
