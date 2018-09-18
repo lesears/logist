@@ -257,14 +257,18 @@ dfbetasPlots(insur_fit, terms = "CDBAL", id.n = 5,
 
 ```
 insur_v <- glm(INS ~ DDA + DDABAL + DEP + CHECKS + TELLER + SAV + SAVBAL + ATMAMT + CD + CDBAL + MM + ATM,
-           data = insur_valid_final, family = binomial(link = "logit"))
+           data = insur_train_final, family = binomial(link = "logit"))
 #install.packages(c('tidyverse','MASS','ROCR','DescTools','Hmisc'))
+
+
 library(tidyverse)
 library(MASS)
 library(ROCR)
 library(DescTools)
 library(Hmisc)
-pred <- prediction(fitted(insur_v), factor(insur_v$y))
+predicted<- predict(insur_v, newdata = insur_valid_final, type="response") 
+
+pred <- prediction(predicted, insur_valid_final$INS)
 perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 
 classif_table <- data.frame(threshold = perf@alpha.values[[1]],
@@ -277,10 +281,10 @@ classif_table[which.max(classif_table$youdenJ),]
 
 
 ##Actual classification table (like on slides)
-df <- data.frame(y = insur_v$y,
-                 phat = fitted(insur_v))
-df_new<- data.frame(y = insur_v$y,
-                 yhat = fitted(insur_v))
+df <- data.frame(y = insur_valid_final$INS,
+                 phat = predicted)
+df_new<- data.frame(y = insur_valid_final$INS,
+                 yhat = predicted)
 for (i in 1:length(df$phat)){
   if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
     df_new$yhat[i]=1
@@ -304,18 +308,18 @@ For the classification table, use the same cutoff that you found previously.
 ```{r}
 ### discrimination slope = mean(p1) - mean(p0) ###
 D <- mean(fitted(insur_v)[insur_v$y == 1]) - mean(fitted(insur_v)[insur_v$y == 0])
-D #0.1366
+D #0.165
 
 ### c-statistic and Somers' D ###
 # predicted prob goes first, outcome second
 rcorr.cens(fitted(insur_v), insur_v$y)[-c(5, 6, 9)] # ignoring output i don't need
-# c-stat =0.7373, somers D = 0.4746
-#for all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 73% of the time. 
+# c-stat =0.756, somers D = 0.512
+#for all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 76% of the time. 
 
 
 ### ROC curves ###
 # the predicted probabilities go first, the actual outcomes (as a factor) second
-pred <- prediction(fitted(insur_v), factor(insur_v$y))
+#pred <- prediction(fitted(insur_v), factor(insur_v$y))
 # then in performance, "measure" is the y-axis, and "x.measure" is the x-axis
 # for a roc curve, we want tpr vs. fpr. "sens" and "spec" also work
 perf <- performance(pred, measure = "tpr", x.measure = "fpr")
@@ -331,8 +335,24 @@ auc
 ```
 
 ```{r}
+### Brier score function ###
 brier_score <- function(obj, new_x = NULL, new_y = NULL){
-if(is.null(new_y)){
+  # computes [scaled] brier score
+  #
+  # inputs:
+  # 1. obj: either a model from glm() or a data frame.
+  #         the data frame must have a vector responses "y" and a vector of
+  #         either probabilities "p" or linear predictor "lp"
+  #         (NOTE: for now only )
+  # 2. new_x: specify new dataset to get predicted probabilities for new obs.
+  #             if NULL, the estimated probabilities from original obs will
+  #             be used.
+  # 3. new_y: use new responses. if NULL, original ones will be used.
+  #
+  # output:
+  #   brier score, max brier score, scaled brier score
+  
+  if(is.null(new_y)){
     y <- obj$y
   } else {
     y <- new_y
@@ -340,24 +360,10 @@ if(is.null(new_y)){
   
   p_obs <- mean(y)
   
-  if(any(class(obj) == "glm")){
-    if(is.null(new_x)){
-      p <- predict(obj, newdata = new_x, type = "response")
-      lp <- predict(obj, newdata = new_x, type = "link")
-    } else {
-      lp <- obj$linear
-      p <- fitted(obj)
-    }
-  } else if(is.null(obj$p)) {
-    lp <- obj$lp
-    p <- fitted(obj)
-  } else {
-    p <- obj$p
-    lp <- obj$linear
-  }
+  p <- predict(obj, newdata = new_x, type = "response")
   
   # brier score
-  brier_score <- mean((y - p)^2)
+  brier_score <- mean((y - p)^2, na.rm = TRUE)
   
   # max brier score is just the observed proportion
   brier_max <- p_obs*((1 - p_obs)^2) + (1 - p_obs)*(p_obs^2)
@@ -373,8 +379,8 @@ if(is.null(new_y)){
   res
 }
 
-brier_score(insur_v)
-#0.862
+brier_score(insur_v, insur_valid_final, insur_valid_final$INS)
+#0.865
 
 ```
 
