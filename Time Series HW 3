@@ -1,0 +1,23 @@
+*There's a new file in the Google Drive Time Series HW#3 folder called df_monthly;
+*This has monthly well data and dates in format SAS can read automatically;
+
+proc arima data=Time.well plot(unpack)=all;
+	identify var=well_height(1) nlag=12 stationarity=(adf=2 dlag=12) outcov=Corr; * adf=lag, dlag=season length;
+	estimate method=ML;
+run;
+quit;
+
+* Seasonal differencing seems to resolve the issues with white noise;
+
+********* R Code for Plotting Stationary Time Series ***********
+
+library(ggplot2)
+
+setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW3/")
+input.file1 <- "df_monthly.csv"
+df_monthly <- read.csv(input.file1, header = TRUE)
+monthly_diff <- as.data.frame(diff(df_monthly$Well_Height,1))
+monthly_diff$ID <- seq.int(nrow(monthly_diff))
+colnames(monthly_diff) <- c('Diff_Vals','Index')
+
+ggplot(data=monthly_diff, aes(x=Index,y=Diff_Vals)) + geom_line() + geom_point() + labs(x = 'Index of Differenced Value', y = 'Differenced Values at Lag 1', title = 'Stationary Time Series of G-860 Well Data')
