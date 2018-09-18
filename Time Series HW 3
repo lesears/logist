@@ -1,23 +1,49 @@
-*There's a new file in the Google Drive Time Series HW#3 folder called df_monthly;
-*This has monthly well data and dates in format SAS can read automatically;
+* import the df_monthly_index.csv file as well_index to use with the following code;
 
-proc arima data=Time.well plot(unpack)=all;
-	identify var=well_height(1) nlag=12 stationarity=(adf=2 dlag=12) outcov=Corr; * adf=lag, dlag=season length;
+proc arima data=time.well_index plot(unpack)=all;
+	identify var=well_height nlag=12 stationarity=(adf=2 dlag=12) outcov=Corr;
 	estimate method=ML;
 run;
 quit;
 
-* Seasonal differencing seems to resolve the issues with white noise;
+data well_test; *create monthly dummy variables to use for modeling;
+set time.well_index;
+if all_x=1 then x1=1; else x1=0;
+if all_x=2 then x2=1; else x2=0;
+if all_x=3 then x3=1; else x3=0;
+if all_x=4 then x4=1; else x4=0;
+if all_x=5 then x5=1; else x5=0;
+if all_x=6 then x6=1; else x6=0;
+if all_x=7 then x7=1; else x7=0;
+if all_x=8 then x8=1; else x8=0;
+if all_x=9 then x9=1; else x9=0;
+if all_x=10 then x10=1; else x10=0;
+if all_x=11 then x11=1; else x11=0;
+run;
 
-********* R Code for Plotting Stationary Time Series ***********
+proc arima data=well_test; * run ARIMA to remove seasonality from the set;
+	identify var=well_height crosscorr=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11) nlag=12 stationarity=(adf=2 dlag=12);
+	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);
+	forecast out=resid_set;
+run;
+quit;
+
+proc arima data=resid_set; *test the residuals to make sure they are stationary - plot these;
+	identify var=Residual stationarity=(adf=2);
+run;
+quit;
+
+* export resid_set to a csv so that it can be graphed cleanly in R;
+********************************
+
+****R Code*****
 
 library(ggplot2)
 
 setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW3/")
-input.file1 <- "df_monthly.csv"
-df_monthly <- read.csv(input.file1, header = TRUE)
-monthly_diff <- as.data.frame(diff(df_monthly$Well_Height,1))
-monthly_diff$ID <- seq.int(nrow(monthly_diff))
-colnames(monthly_diff) <- c('Diff_Vals','Index')
+input.file1 <- "df_resid.csv"
+df_resid <- read.csv(input.file1, header = TRUE)
+df_resid$ID <- seq.int(nrow(df_resid))
+colnames(df_resid) <- c('Well_Height','Forecast','StdError','95Lower','95Upper','Residual','Index')
 
-ggplot(data=monthly_diff, aes(x=Index,y=Diff_Vals)) + geom_line() + geom_point() + labs(x = 'Index of Differenced Value', y = 'Differenced Values at Lag 1', title = 'Stationary Time Series of G-860 Well Data')
+ggplot(data=df_resid, aes(x=Index,y=Residual)) + geom_line() + geom_point() + labs(x = 'Index', y = 'Residual Value', title = 'Residuals Showing Stationarity of G-860 Well Data') + theme(plot.title = element_text(hjust = 0.5),text = element_text(size=16))
