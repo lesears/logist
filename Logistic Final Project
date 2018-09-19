@@ -1,6 +1,4 @@
 install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr','forecast','brglm2','moments'))
-install.packages('brglm2')
-install.packages('olsrr')
 library(car)
 library(gmodels)
 library(forecast)
@@ -14,12 +12,6 @@ library(seasonal)
 library(brglm2)
 library(moments)
 library(caret)
-library(e1071)
-library(ggplot2)
-library(visreg)
-library(olsrr)
-install.packages('ROCR')
-library(ROCR)
 install.packages('')
 options(scipen=999) # Improve readability of parameter estimates
 
@@ -132,17 +124,15 @@ library(caret)
 library(brglm)
 library(tidyverse)
 library(MASS)
-construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector + Region_2+ 
+########Model 1 with Sector and Region_2 to eliminate multicollinearity######
+construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Region_2+ Sector2+ 
                           Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                           Competitor_H + Competitor_I + Competitor_J, data = construction_train,
                         family = binomial(link = "logit"))#control.glm = control)
-summary(construction_ref)# This new model with Bid_Win_Difference eliminates all multicollinearity present in the model
-backwards = step(construction_ref)
-back_mod =glm(Won ~ Sector + Region_2 + Number_of_Competitor_Bids + Competitor_B + 
-                Competitor_E + Competitor_F + Competitor_H + Competitor_J,data = construction_train, family = binomial(link = "logit"))
-#AIC = 148.77
-
-#forwards
+summary(construction_ref)
+backwards = step(construction_ref, trace = 0)
+#AIC = 144 and all p-values significant
+forwards
 nothing <- glm(Won ~ 1,data = construction_train,family=binomial)
 step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref)), direction="forward")
@@ -150,145 +140,57 @@ step(nothing,
 #(AIC 148)
 
 #same model backwards and forwards using AIC
-anova(back_mod,construction_ref, test ='LRT')
+anova(backwards,construction_ref, test ='LRT')
 # high p-value means that new model is adequate 
 
-#without sector
-construction_ref2 <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete +Region_of_Country + 
+########Model 2: without sector#########
+construction_ref2 <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete +Region_of_Country 
                            + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                            Competitor_H + Competitor_I + Competitor_J+ Number_of_Competitor_Bids, data = construction_train,
                         family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref2)#
-backwards2 = step(construction_ref2)
+backwards2 = step(construction_ref2, method)
 anova(backwards2,construction_ref2, test = 'LRT')
 #better than reference
 step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref2)), direction="forward")
-#same as backwords AIC = 182
+#same as backwords AIC = 183
 
+#####Model 3 regular with region_of_country and sector#######
+construction_ref3 <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Region_of_Country + Sector+ 
+                          Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
+                          Competitor_H + Competitor_I + Competitor_J, data = construction_train,
+                        family = binomial(link = "logit"))#control.glm = control)
+summary(construction_ref3)
+backwards3 = step(construction_ref3)
+#AIC 148
+#forwards
+nothing <- glm(Won ~ 1,data = construction_train,family=binomial)
+step(nothing,
+     scope=list(lower=formula(nothing),upper=formula(construction_ref3)), direction="forward")
+anova(backwards3, construction_ref3, test = 'LRT')
+#forward= same as backwards 
 ####ROC CURVES to check better model####
 # the predicted probabilities go first, the actual outcomes (as a factor) second
-pred <- prediction(fitted(backwards2), factor(backwards2$y))
-pred2 <- prediction(fitted(backwards), factor(backwards$y))
+pred <- prediction(fitted(backwards), factor(backwards$y))
+pred2 <- prediction(fitted(backwards2), factor(backwards2$y))
+pred3<- prediction(fitted(backwards3), factor(backwards3$y))
 # then in performance, "measure" is the y-axis, and "x.measure" is the x-axis
 # for a roc curve, we want tpr vs. fpr. "sens" and "spec" also work
 perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 perf2 <- performance(pred2, measure = "tpr", x.measure = "fpr")
+perf3 <- performance(pred3, measure = "tpr", x.measure = "fpr")
 # then we can plot
 plot(perf, colorize = TRUE)
 plot(perf2, add = TRUE, colorize = TRUE)
+plot(perf3, add = TRUE, colorize = TRUE)
 # add 45-degree line (random guessing)
 abline(a = 0, b = 1, lty = 2)
 # AUC
 auc <- performance(pred, measure = "auc")@y.values
 auc
 
-###backwards2 model w/o sector is the better model not by AIC but looks better on ROC cruve, and has more info about region of country 
-Final_model = backwards2
-vif(Final_model)
-#no multi-collinearity 
+####FINAL MODEL IS MODEL 3######
+final_model = backwards3
+
 ###########################################################################################################################
-
-#########################   GOODNESS OF FIT  ########################################
-
-#test for linear separation
-construction_ref2_sep <- glm(Won ~ Region_of_Country + Number_of_Competitor_Bids + Competitor_B + 
-            Competitor_E + Competitor_F + Competitor_H + Competitor_J,
-           data = construction_train,
-           family = binomial(link = "logit"),
-           method = "detect_separation")
-construction_ref2_sep
-#result: FALSE, conclude NO linear separation
-
-#Check the linearity assumption for any continuous variables
-visreg(Final_model, "Number_of_Competitor_Bids", gg = TRUE, points = list(col = "black")) +
-  geom_smooth(col = "red", fill = "red") + theme_bw() +
-  labs(title = "Partial Residual Plot for Number of Comperitor Bids - Backwards2",
-       x = "Number of Comperitor Bids", y = "Partial (deviance) Residuals")
-#looks very good, almost perfectly linear
-
-#checking for interactions among the main effects
-final_model_interactions <- glm(Won ~ Region_of_Country + Number_of_Competitor_Bids + Competitor_B + 
-            Competitor_E + Competitor_F + Competitor_H + Competitor_J + 
-            Competitor_E*Competitor_B,
-           data = construction_train,
-           family = binomial(link = "logit"))
-AIC(Final_model) - AIC(final_model_interactions)
-#AIC improvement of 4.4 when INCLUDING interaction term
-
-#create dataframe of variables in final model: construction_train_keep
-keep_vars <- c('Won','Region_of_Country','Number_of_Competitor_Bids','Competitor_B',
-               'Competitor_E','Competitor_F','Competitor_H','Competitor_J')
-construction_train_keep <- construction_train[, which(names(construction_train) %in% keep_vars)]
-
-#Check for influential observations 
-plot(Final_model, 4, id.n=5)
-outlier_index = c(1, 110, 119, 131, 340) 
-as.data.frame(construction_train_keep[outlier_index,])
-summary(construction_train_keep)
-#No similarity between influential observations found
-
-#dfbetas
-influence.measures(Final_model)
-
-#Region of country 
-dfbetasPlots(Final_model, terms = "Region_of_Country", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 133 consistent outlier
-
-#Number_of_Competitor_Bids 
-dfbetasPlots(Final_model, terms = "Number_of_Competitor_Bids", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 110 outlier
-
-#Competitor_B 
-dfbetasPlots(Final_model, terms = "Competitor_B", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 110, 119, 269 outlier
-
-#Competitor_E 
-dfbetasPlots(Final_model, terms = "Competitor_E", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 110 outliers
-
-#Competitor_F 
-dfbetasPlots(Final_model, terms = "Competitor_F", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 131, 134, 151, 283, 340 outliers
-
-#Competitor_H 
-dfbetasPlots(Final_model, terms = "Competitor_H", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 210 outlier
-
-#Competitor_J 
-dfbetasPlots(Final_model, terms = "Competitor_J", id.n = 5,
-             col = ifelse(fit$y == 1, "red", "blue"))
-#OBS 31, 44 outlier
-
-### summary of outlying observations ###
-summary(as.data.frame(construction_train_keep[c(133,110,31,44,210,131,134,151,283,340,119,269),]))
-#compare to entire df #
-summary(construction_train_keep)
-#median # of competitor bids in outliers is half that of full data set
-#mean of 'won' in outlier df is 3x that of full data set
-#^^^any conclusions from these two observations?^^^
-
-### GAMs ###
-# fit model as a GAM:
-# gam() from the mgcv package uses basically the same syntax as glm()
-# s() tells it to use a spline for this variable
-library(mgcv)
-Final_model_gam <- gam(Won ~ Region_of_Country + s(Number_of_Competitor_Bids) + Competitor_B + 
-            Competitor_E + Competitor_F + Competitor_H + Competitor_J,
-               data = construction_train, family = binomial, method = "REML")
-summary(Final_model_gam)
-# in this output, the "significance of smooth terms" is testing whether or not
-# the Number_of_Competitor_Bids effect = 0, NOT if it's linear!
-# We reject null, Conclude: Spline of Number_of_Competitor_Bids is statistically significant,
-# consider keeping s(Number_of_Competitor_Bids) in model
-# AIC for Final_model_gam = Final_model, so spline no effect
-
-# plot estimated effect of Number_of_Competitor_Bids
-plot(Final_model_gam, ylab = "f(Number_of_Competitor_Bids)", shade = TRUE, main = "effect of Number_of_Competitor_Bids", jit = TRUE,
-     seWithMean = TRUE)
