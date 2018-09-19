@@ -1,69 +1,98 @@
+
+********************************
+*			       *
+*           SAS Code           *
+*	   Seasonality	       *
+*			       *
+********************************
+
 libname Time 'C:\Users\chels\Desktop\MSA\Fall 1\Time Series\Homework 3';
-* import the df_monthly_index.csv file as well_index to use with the following code;
+
+* Import the df_monthly_index.csv file as well_index to use with the following code;
+* Create new set with month indicator;
 
 data time.new_well;
-set time.well;
-all_x = month(time);
+	set time.well;
+	all_x = month(time);
 run;
 
+* Print output to check validity of set;
 proc print data=time.new_well (obs =10);
 run;
 
+* Run initial ARIMA analysis on well data;
 proc arima data=time.new_well plot(unpack)=all;
 	identify var=well_height nlag=12 stationarity=(adf=2 dlag=12) outcov=Corr;
 	estimate method=ML;
 run;
 quit;
 
-data well_test; *create monthly dummy variables to use for modeling;
-set new_well;
-if all_x=1 then x1=1; else x1=0;
-if all_x=2 then x2=1; else x2=0;
-if all_x=3 then x3=1; else x3=0;
-if all_x=4 then x4=1; else x4=0;
-if all_x=5 then x5=1; else x5=0;
-if all_x=6 then x6=1; else x6=0;
-if all_x=7 then x7=1; else x7=0;
-if all_x=8 then x8=1; else x8=0;
-if all_x=9 then x9=1; else x9=0;
-if all_x=10 then x10=1; else x10=0;
-if all_x=11 then x11=1; else x11=0;
+* Create monthly dummy variables to model the seasonality present in our well data;
+data well_test;
+	set new_well;
+	if all_x=1 then x1=1; else x1=0;
+	if all_x=2 then x2=1; else x2=0;
+	if all_x=3 then x3=1; else x3=0;
+	if all_x=4 then x4=1; else x4=0;
+	if all_x=5 then x5=1; else x5=0;
+	if all_x=6 then x6=1; else x6=0;
+	if all_x=7 then x7=1; else x7=0;
+	if all_x=8 then x8=1; else x8=0;
+	if all_x=9 then x9=1; else x9=0;
+	if all_x=10 then x10=1; else x10=0;
+	if all_x=11 then x11=1; else x11=0;
 run;
 
+* Print output to check validity of set;
 proc print data=well_test (obs =10);
 quit;
 
-proc arima data=well_test plot=all; * run ARIMA to remove seasonality from the set;
-	identify var=well_height crosscorr=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);* nlag=12 stationarity=(adf=2 dlag=12);
-	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11) method =ML;
+* Run ARIMA analysis on new set containing dummy variables;
+proc arima data=well_test plot=all; 
+	identify var=well_height crosscorr=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);
+	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11) method=ML;
 	forecast out=resid_set;
 run;
 quit;
 
-proc arima data=resid_set; *test the residuals to make sure they are stationary - plot these;
+* Run ARIMA one last time on the residuals to verify seasonality was removed;
+* To plot, export resid_set as CSV and pass to R;
+proc arima data=resid_set;
 	identify var=Residual nlag = 12 stationarity=(adf=2);
 run;
 quit;
 
-* export resid_set to a csv so that it can be graphed cleanly in R;
 ********************************
-
-****R Code*****
+*			       *
+*           R Code             *
+*	   Plotting	       *
+*			       *
+********************************
 
 library(ggplot2)
 
-setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW3/")
+setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW3/") # Read in residual data
 input.file1 <- "df_resid.csv"
 df_resid <- read.csv(input.file1, header = TRUE)
-df_resid$ID <- seq.int(nrow(df_resid))
-colnames(df_resid) <- c('Well_Height','Forecast','StdError','95Lower','95Upper','Residual','Index')
+df_resid$ID <- seq.int(nrow(df_resid)) # Add index column for the residual data
+colnames(df_resid) <- c('Well_Height','Forecast','StdError','95Lower','95Upper','Residual','Index') # Correct column names
 
+# Create a more visually appealing plot of the residual data to see seasonality removed
 ggplot(data=df_resid, aes(x=Index,y=Residual)) + geom_line() + geom_point() + labs(x = 'Index', y = 'Residual Value', title = 'Residuals Showing Stationarity of G-860 Well Data') + theme(plot.title = element_text(hjust = 0.5),text = element_text(size=16))
 
-***** Code for the next group to recreate dataset with dummy variables - will need to pass along time corrected well file as well ******
+********************************
+*			       *
+*           R Code             *
+*       Data Preparation       *
+*			       *
+********************************
+
+# Will need to pass along time_corrected_well_data to next group
+# This has data corrected for daylight savings time
 
 library(forecast)
-setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW2/")
+
+setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW2/") # Read in data
 input.file1 <- "Time_Corrected_Well_Data.csv"
 df <- read.csv(input.file1, header = TRUE)
 
@@ -71,9 +100,13 @@ df <- read.csv(input.file1, header = TRUE)
 df$monthday <- as.Date(df$UTC.Date , "%m/%d/%Y")
 df$month <- substr(df$monthday, 1, 7)
 df_monthly <- aggregate(df[, 6], list(df$month), mean)
+
+# Create month/year columns that are readable as SAS dates
 df_monthly$month <- month.abb[as.numeric(substr(df_monthly$Group.1,6,7))]
 df_monthly$year <- as.numeric(paste('20',substr(df_monthly$Group.1,3,4),sep=''))
 df_monthly$month_year <- paste(df_monthly$month, df_monthly$year, sep='')
+
+# Add in seasonal dummy variables to account for seasonality and produce final set
 wells <- ts(df_monthly$x, start=c(2007,10), frequency =12)
 well_data <- cbind(df_monthly,as.data.frame(seasonaldummy(wells)))
 colnames(well_data)[1] <- 'date'
