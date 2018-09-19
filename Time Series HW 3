@@ -1,15 +1,15 @@
 libname Time 'C:\Users\chels\Desktop\MSA\Fall 1\Time Series\Homework 3';
 * import the df_monthly_index.csv file as well_index to use with the following code;
 
-data new_well;
-set well_index;
+data time.new_well;
+set time.well;
 all_x = month(time);
 run;
 
-proc print data=new_well (obs =10);
+proc print data=time.new_well (obs =10);
 run;
 
-proc arima data=work.well_index plot(unpack)=all;
+proc arima data=time.new_well plot(unpack)=all;
 	identify var=well_height nlag=12 stationarity=(adf=2 dlag=12) outcov=Corr;
 	estimate method=ML;
 run;
@@ -35,8 +35,8 @@ quit;
 
 proc arima data=well_test plot=all; * run ARIMA to remove seasonality from the set;
 	identify var=well_height crosscorr=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);* nlag=12 stationarity=(adf=2 dlag=12);
-	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);
-	out=resid_set;
+	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11) method =ML;
+	forecast out=resid_set;
 run;
 quit;
 
