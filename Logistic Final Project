@@ -1,4 +1,6 @@
 install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr','forecast','brglm2','moments'))
+install.packages('brglm2')
+install.packages('olsrr')
 library(car)
 library(gmodels)
 library(forecast)
@@ -12,6 +14,12 @@ library(seasonal)
 library(brglm2)
 library(moments)
 library(caret)
+library(e1071)
+library(ggplot2)
+library(visreg)
+library(olsrr)
+install.packages('ROCR')
+library(ROCR)
 install.packages('')
 options(scipen=999) # Improve readability of parameter estimates
 
@@ -180,3 +188,107 @@ Final_model = backwards2
 vif(Final_model)
 #no multi-collinearity 
 ###########################################################################################################################
+
+#########################   GOODNESS OF FIT  ########################################
+
+#test for linear separation
+construction_ref2_sep <- glm(Won ~ Region_of_Country + Number_of_Competitor_Bids + Competitor_B + 
+            Competitor_E + Competitor_F + Competitor_H + Competitor_J,
+           data = construction_train,
+           family = binomial(link = "logit"),
+           method = "detect_separation")
+construction_ref2_sep
+#result: FALSE, conclude NO linear separation
+
+#Check the linearity assumption for any continuous variables
+visreg(Final_model, "Number_of_Competitor_Bids", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "Partial Residual Plot for Number of Comperitor Bids - Backwards2",
+       x = "Number of Comperitor Bids", y = "Partial (deviance) Residuals")
+#looks very good, almost perfectly linear
+
+#checking for interactions among the main effects
+final_model_interactions <- glm(Won ~ Region_of_Country + Number_of_Competitor_Bids + Competitor_B + 
+            Competitor_E + Competitor_F + Competitor_H + Competitor_J + 
+            Competitor_E*Competitor_B,
+           data = construction_train,
+           family = binomial(link = "logit"))
+AIC(Final_model) - AIC(final_model_interactions)
+#AIC improvement of 4.4 when INCLUDING interaction term
+
+#create dataframe of variables in final model: construction_train_keep
+keep_vars <- c('Won','Region_of_Country','Number_of_Competitor_Bids','Competitor_B',
+               'Competitor_E','Competitor_F','Competitor_H','Competitor_J')
+construction_train_keep <- construction_train[, which(names(construction_train) %in% keep_vars)]
+
+#Check for influential observations 
+plot(Final_model, 4, id.n=5)
+outlier_index = c(1, 110, 119, 131, 340) 
+as.data.frame(construction_train_keep[outlier_index,])
+summary(construction_train_keep)
+#No similarity between influential observations found
+
+#dfbetas
+influence.measures(Final_model)
+
+#Region of country 
+dfbetasPlots(Final_model, terms = "Region_of_Country", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 133 consistent outlier
+
+#Number_of_Competitor_Bids 
+dfbetasPlots(Final_model, terms = "Number_of_Competitor_Bids", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 110 outlier
+
+#Competitor_B 
+dfbetasPlots(Final_model, terms = "Competitor_B", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 110, 119, 269 outlier
+
+#Competitor_E 
+dfbetasPlots(Final_model, terms = "Competitor_E", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 110 outliers
+
+#Competitor_F 
+dfbetasPlots(Final_model, terms = "Competitor_F", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 131, 134, 151, 283, 340 outliers
+
+#Competitor_H 
+dfbetasPlots(Final_model, terms = "Competitor_H", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 210 outlier
+
+#Competitor_J 
+dfbetasPlots(Final_model, terms = "Competitor_J", id.n = 5,
+             col = ifelse(fit$y == 1, "red", "blue"))
+#OBS 31, 44 outlier
+
+### summary of outlying observations ###
+summary(as.data.frame(construction_train_keep[c(133,110,31,44,210,131,134,151,283,340,119,269),]))
+#compare to entire df #
+summary(construction_train_keep)
+#median # of competitor bids in outliers is half that of full data set
+#mean of 'won' in outlier df is 3x that of full data set
+#^^^any conclusions from these two observations?^^^
+
+### GAMs ###
+# fit model as a GAM:
+# gam() from the mgcv package uses basically the same syntax as glm()
+# s() tells it to use a spline for this variable
+library(mgcv)
+Final_model_gam <- gam(Won ~ Region_of_Country + s(Number_of_Competitor_Bids) + Competitor_B + 
+            Competitor_E + Competitor_F + Competitor_H + Competitor_J,
+               data = construction_train, family = binomial, method = "REML")
+summary(Final_model_gam)
+# in this output, the "significance of smooth terms" is testing whether or not
+# the Number_of_Competitor_Bids effect = 0, NOT if it's linear!
+# We reject null, Conclude: Spline of Number_of_Competitor_Bids is statistically significant,
+# consider keeping s(Number_of_Competitor_Bids) in model
+# AIC for Final_model_gam = Final_model, so spline no effect
+
+# plot estimated effect of Number_of_Competitor_Bids
+plot(Final_model_gam, ylab = "f(Number_of_Competitor_Bids)", shade = TRUE, main = "effect of Number_of_Competitor_Bids", jit = TRUE,
+     seWithMean = TRUE)
