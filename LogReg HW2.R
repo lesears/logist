@@ -192,8 +192,8 @@ pred <- prediction(predicted, insur_valid_final$INS)
 perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 
 classif_table <- data.frame(threshold = perf@alpha.values[[1]],
-                         tpr = perf@y.values[[1]],
-                         tnr = 1 - perf@x.values[[1]])
+                            tpr = perf@y.values[[1]],
+                            tnr = 1 - perf@x.values[[1]])
 classif_table$youdenJ <- with(classif_table, tpr + tnr - 1) # Youden's index: add weights for tpr (sens) and tnr (spec) if desired
 classif_table[which.max(classif_table$youdenJ),] # Find row with max
 
@@ -201,7 +201,7 @@ classif_table[which.max(classif_table$youdenJ),] # Find row with max
 df <- data.frame(y = insur_valid_final$INS,
                  phat = predicted)
 df_new<- data.frame(y = insur_valid_final$INS,
-                 yhat = predicted)
+                    yhat = predicted)
 for (i in 1:length(df$phat)){
   if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
     df_new$yhat[i]=1
@@ -227,18 +227,6 @@ auc <- performance(pred, measure = "auc")@y.values # Find AUC for ROC curve
 auc
 
 brier_score <- function(obj, new_x = NULL, new_y = NULL){
-  # computes [scaled] brier score
-  # inputs:
-  # 1. obj: either a model from glm() or a data frame.
-  #         the data frame must have a vector responses "y" and a vector of
-  #         either probabilities "p" or linear predictor "lp"
-  #         (NOTE: for now only )
-  # 2. new_x: specify new dataset to get predicted probabilities for new obs.
-  #             if NULL, the estimated probabilities from original obs will
-  #             be used.
-  # 3. new_y: use new responses. if NULL, original ones will be used.
-  # output:
-  #   brier score, max brier score, scaled brier score
   if(is.null(new_y)){
     y <- obj$y
   } else {
@@ -255,8 +243,8 @@ brier_score <- function(obj, new_x = NULL, new_y = NULL){
   brier_scaled <- brier_score/brier_max
   # essentially, 1 - brier_scaled is the %improvement over null model
   res <- data.frame(brier_score = brier_score,
-                   brier_max = brier_max,
-                   brier_scaled = brier_scaled)
+                    brier_max = brier_max,
+                    brier_scaled = brier_scaled)
   res
 }
 
