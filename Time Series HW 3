@@ -33,7 +33,7 @@ run;
 proc print data=well_test (obs =10);
 quit;
 
-proc arima data=well_test; * run ARIMA to remove seasonality from the set;
+proc arima data=well_test plot=all; * run ARIMA to remove seasonality from the set;
 	identify var=well_height crosscorr=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);* nlag=12 stationarity=(adf=2 dlag=12);
 	estimate input=(x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11);
 	out=resid_set;
