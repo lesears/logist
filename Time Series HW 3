@@ -59,3 +59,23 @@ df_resid$ID <- seq.int(nrow(df_resid))
 colnames(df_resid) <- c('Well_Height','Forecast','StdError','95Lower','95Upper','Residual','Index')
 
 ggplot(data=df_resid, aes(x=Index,y=Residual)) + geom_line() + geom_point() + labs(x = 'Index', y = 'Residual Value', title = 'Residuals Showing Stationarity of G-860 Well Data') + theme(plot.title = element_text(hjust = 0.5),text = element_text(size=16))
+
+***** Code for the next group to recreate dataset with dummy variables - will need to pass along time corrected well file as well ******
+
+library(forecast)
+setwd("/Users/matttrombley/Dropbox/Fall 2018/Fall 1/Time Series/HW2/")
+input.file1 <- "Time_Corrected_Well_Data.csv"
+df <- read.csv(input.file1, header = TRUE)
+
+# Change to date format & remove day element, then aggregate to monthly
+df$monthday <- as.Date(df$UTC.Date , "%m/%d/%Y")
+df$month <- substr(df$monthday, 1, 7)
+df_monthly <- aggregate(df[, 6], list(df$month), mean)
+df_monthly$month <- month.abb[as.numeric(substr(df_monthly$Group.1,6,7))]
+df_monthly$year <- as.numeric(paste('20',substr(df_monthly$Group.1,3,4),sep=''))
+df_monthly$month_year <- paste(df_monthly$month, df_monthly$year, sep='')
+wells <- ts(df_monthly$x, start=c(2007,10), frequency =12)
+well_data <- cbind(df_monthly,as.data.frame(seasonaldummy(wells)))
+colnames(well_data)[1] <- 'date'
+colnames(well_data)[2] <- 'agg_height'
+
