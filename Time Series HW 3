@@ -78,8 +78,7 @@ df_resid$ID <- seq.int(nrow(df_resid)) # Add index column for the residual data
 colnames(df_resid) <- c('Well_Height','Forecast','StdError','95Lower','95Upper','Residual','Index') # Correct column names
 
 # Create a more visually appealing plot of the residual data to see seasonality removed
-ggplot(data=df_resid, aes(x=Index,y=Residual)) + geom_line() + geom_point() + labs(x = 'Index', y = 'Residual Value', title = 'Residuals Showing Stationarity of G-860 Well Data') + theme(plot.title = element_text(hjust = 0.5),text = element_text(size=16))
-
+ggplot() + geom_line(data=df_resid, aes(x=Index,y=Residual)) + labs(x = 'Month', y = 'Residual Value', title = 'Residuals Showing Stationarity of G-860 Well Data') + scale_x_continuous(breaks=c(5,27,50,72,95,118),labels=c("5" = "Feb. 2008","27" = "Dec. 2009","50" = "Nov. 2011","72" = "Sep. 2013","95" = "Aug. 2015","118" = "Jul. 2017")) + theme(plot.title = element_text(hjust = 0.5),text = element_text(size=16))
 ********************************
 *			       *
 *           R Code             *
