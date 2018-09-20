@@ -248,3 +248,86 @@ summary(as.data.frame(construction_train_keep3[outlier_index,]))
 summary(construction_train_keep3)
 #number of competitor bids in outliers mean is half that of full set
 #won is 64% in outliers, 15% in full set
+
+
+
+
+###########################################################################################################################
+#########################   Validation for  MODEL 3  ########################################
+
+#Getting predicted probabilities
+p<- predict(final_model, newdata = construction_valid, type="response")
+
+#Calculate youdens Index
+pred <- prediction(p, construction_valid$Won)
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+classif_table <- data.frame(threshold = perf@alpha.values[[1]],
+                            tpr = perf@y.values[[1]],
+                            tnr = 1 - perf@x.values[[1]])
+classif_table$youdenJ <- with(classif_table, tpr + tnr - 1) # Youden's index: add weights for tpr (sens) and tnr (spec) if desired
+classif_table[which.max(classif_table$youdenJ),] # Find row with max
+#row   threshold       tpr      tnr     youdenJ
+#41   0.1587397   0.8571429   0.880597 0.7377399
+
+
+# Actual classification table (confusion Matrix)
+df <- data.frame(y = construction_valid$Won,
+                 phat = p)
+df_new<- data.frame(y = construction_valid$Won,
+                    yhat = p)
+for (i in 1:length(df$phat)){
+  if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
+    df_new$yhat[i]=1
+  }
+  else{
+    df_new$yhat[i]=0
+  }
+}
+xtabs(~ yhat+ y, data = df_new) 
+#    y
+#yhat  0   1
+#0   118   4
+#1    16  24
+
+
+#Coefficient of Discrimination
+D <- mean(fitted(final_model)[final_model$y== 1]) - mean(fitted(final_model)[final_model$y == 0])
+D 
+#discrimination - 0.6789528
+# difference of 67.8% in average predictive probabilities between a company winning a bet or not
+
+
+# Check for c-statistic and Somer's D 
+rcorr.cens(fitted(final_model), final_model$y)[-c(5, 6, 9)] # Ignoring unnecessary output
+#   C Index            Dxy           S.D.              n Relevant Pairs     Concordant 
+#0.97083904     0.94167807     0.02538679   381.00000000 37996.00000000 36888.00000000 
+# For all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 97% of the time.
+
+
+#Brier score calculation 
+brier_score <- function(obj, new_x = NULL, new_y = NULL){
+  if(is.null(new_y)){
+    y <- obj$y
+  } else {
+    y <- new_y
+  }
+  p_obs <- mean(y)
+  p <- predict(obj, newdata = new_x, type = "response")
+  # brier score
+  brier_score <- mean((y - p)^2, na.rm = TRUE)
+  # max brier score is just the observed proportion
+  brier_max <- p_obs*((1 - p_obs)^2) + (1 - p_obs)*(p_obs^2)
+  # scaled brier score
+  # ranges from 0 to 1---lower is better
+  brier_scaled <- brier_score/brier_max
+  # essentially, 1 - brier_scaled is the %improvement over null model
+  res <- data.frame(brier_score = brier_score,
+                    brier_max = brier_max,
+                    brier_scaled = brier_scaled)
+  res
+}
+
+brier_score(final_model, construction_valid, construction_valid$Won)
+#brier_score brier_max brier_scaled
+#  0.08629495  0.142966    0.6036046
+# so our model is 39.6% better than the null model
