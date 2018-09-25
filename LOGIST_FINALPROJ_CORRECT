@@ -1,4 +1,14 @@
-install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr','forecast','brglm2','moments'))
+#################################
+#                               #
+#       MSA Class of 2019       #
+#                               #
+#      Logistic Regression      #
+#        Final Project          #
+#        Orange Team 2          #
+#                               #
+#################################
+
+#install.packages(c('expsmooth','lmtest','zoo','seasonal','haven','fma','gmodels','car','tseries','descr','forecast','brglm2','moments'))
 library(car)
 library(gmodels)
 library(forecast)
@@ -12,10 +22,10 @@ library(seasonal)
 library(brglm2)
 library(moments)
 library(caret)
-install.packages('')
+#install.packages('')
 options(scipen=999) # Improve readability of parameter estimates
 
-file.dir <- 'C:\\Users\\Laney\\Documents\\Data\\data\\' # Replace with path to your file
+file.dir <- 'C:\\Users\\chels\\Desktop\\MSA\\Fall 1\\Logistic Regression\\Final_Project\\' # Replace with path to your file
 input.file1 <- "construction.sas7bdat"
 construction <- read_sas(paste(file.dir, input.file1,sep = "")) # Read in training set
 construction$Bid_Win_Difference <- round(construction$Bid_Price__Millions_ - construction$Winning_Bid_Price__Millions_,2) # Creating this variable is one way to resolve all multicollinearity
@@ -28,7 +38,7 @@ summary(construction) # Summarize to check for missing values and descriptive st
 #construction_valid <- construction[381:543,] # Partition 30% of data into validation set (if doing 80/20, this would be 435:543)
 
 ##creating partitions randomly
-install.packages('caret')
+#install.packages('caret')
 library('caret')
 ##creating partitions randomly
 set.seed(1452)
@@ -39,15 +49,15 @@ construction_valid <- construction[-inTrain,]
 
 control <- glm.control(maxit = 100) # Need to increase the maximum number of model iterations so that brglm can run successfully
 
-construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector+ Region_of_Country + Competitor_A + Competitor_B + Competitor_C + Competitor_D + Competitor_E + Competitor_F + Competitor_G + Competitor_H + Competitor_I + Competitor_J, data = construction_train, family = binomial(link = "logit"))#control.glm = control)
+construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector+ Region_of_Country + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_C + Competitor_D + Competitor_E + Competitor_F + Competitor_G + Competitor_H + Competitor_I + Competitor_J, data = construction_train, family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref)
 vif(construction_ref) # High VIF values for Estimated_Cost_Millions, Bid_Price_Millions, and Winning_Bid_Price_Millions,
 
-construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector+Region_2 +  Competitor_A + Competitor_B + Competitor_E + Competitor_F  + Competitor_H + Competitor_I + Competitor_J, data = construction_train, family = binomial(link = "logit"))#control.glm = control)
+construction_ref <- glm(Won ~ Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector+Region_2 + Number_of_Competitor_Bids + Competitor_A + Competitor_B + Competitor_E + Competitor_F  + Competitor_H + Competitor_I + Competitor_J, data = construction_train, family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref)
 vif(construction_ref)# No more multicollinearity present
 
-#number competitor bids removed becuase we would not know this
+
 
 
 hist(construction$Competitor_C, labels = TRUE) # Bid on 5.6% of total projects
@@ -83,7 +93,7 @@ boxplot(construction_train$Cost_After_Engineering_Estimate_)
 boxplot(construction_train$Number_of_Competitor_Bids)
 
 
-##Recategorizing Region:
+##Recategorizing Region for training:
 class(construction_train$Region_of_Country)
 
 prop.table(table(construction_train$Region_of_Country, construction_train$Won),margin = 1)
@@ -99,9 +109,25 @@ prop.table(table(construction_train$Region_2, construction_train$Won),margin = 1
 table(construction_train$Region_2, construction_train$Won)
 
 
+##Recategorizing Region for validation:
+class(construction_valid$Region_of_Country)
+
+prop.table(table(construction_valid$Region_of_Country, construction_valid$Won),margin = 1)
+table(construction_valid$Region_of_Country, construction_valid$Won)
+
+construction_valid$Region_2[construction_valid$Region_of_Country == 'Mid-west'] <- "Region 1"
+construction_valid$Region_2[construction_valid$Region_of_Country == 'Northeast'] <- "Region 1"
+construction_valid$Region_2[construction_valid$Region_of_Country == 'Southeast'] <- "Region 2"
+construction_valid$Region_2[construction_valid$Region_of_Country == 'Southwest'] <- "Region 1"
+construction_valid$Region_2[construction_valid$Region_of_Country == 'West'] <- "Region 2"
+
+prop.table(table(construction_valid$Region_2, construction_valid$Won),margin = 1)
+table(construction_valid$Region_2, construction_valid$Won)
 
 
-##Recategorizing Sector:
+
+
+##Recategorizing Sector for training:
 class(construction_train$Sector)
 
 prop.table(table(construction_train$Sector, construction_train$Won),margin = 1)
@@ -115,15 +141,31 @@ construction_train$Sector2[construction_train$Sector == '6'] <- "Sector 1"
 prop.table(table(construction_train$Sector2, construction_train$Won),margin = 1)
 table(construction_train$Sector2, construction_train$Won)
 
+
+
+##Recategorizing Sector for validation:
+class(construction_valid$Sector)
+
+prop.table(table(construction_valid$Sector, construction_valid$Won),margin = 1)
+table(construction_valid$Sector, construction_valid$Won)
+
+construction_valid$Sector2 <- 'Sector 2'
+construction_valid$Sector2[construction_valid$Sector == '4'] <- "Sector 1"
+construction_valid$Sector2[construction_valid$Sector == '5'] <- "Sector 1"
+construction_valid$Sector2[construction_valid$Sector == '6'] <- "Sector 1"
+
+prop.table(table(construction_valid$Sector2, construction_valid$Won),margin = 1)
+table(construction_valid$Sector2, construction_valid$Won)
 #############################model building#########################################################################################
-install.packages('brglm')
-install.packages('MASS')
-install.packages('tidyverse')
-install.packages('caret')
+#install.packages('brglm')
+#install.packages('MASS')
+#install.packages('tidyverse')
+#install.packages('caret')
 library(caret)
 library(brglm)
 library(tidyverse)
 library(MASS)
+
 ########Model 1 with Sector and Region_2 to eliminate multicollinearity w/o Estimated_Cost__Millions_ + Estimated_Years_to_Complete ######
 construction_ref <- glm(Won ~  Region_2 +Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector2 + Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                           Competitor_H + Competitor_I + Competitor_J, data = construction_train,
@@ -144,9 +186,9 @@ anova(backwards,construction_ref, test ='LRT')
 
 ########Model 2: without sector#########
 construction_ref2 <- glm(Won ~ Region_of_Country +Estimated_Cost__Millions_ + Estimated_Years_to_Complete+
-                            Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
+                           Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                            Competitor_H + Competitor_I + Competitor_J, data = construction_train,
-                        family = binomial(link = "logit"))#control.glm = control)
+                         family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref2)#
 backwards2 = step(construction_ref2)
 anova(backwards2,construction_ref2, test = 'LRT')
@@ -157,9 +199,9 @@ step(nothing,
 
 #####Model 3 regular with region_of_country and sector#######
 construction_ref3 <- glm(Won ~  Region_of_Country + Sector+ Estimated_Cost__Millions_ + Estimated_Years_to_Complete+
-                          Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
-                          Competitor_H + Competitor_I + Competitor_J, data = construction_train,
-                        family = binomial(link = "logit"))#control.glm = control)
+                           Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
+                           Competitor_H + Competitor_I + Competitor_J, data = construction_train,
+                         family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref3)
 backwards3 = step(construction_ref3)
 #AIC 148
@@ -169,6 +211,7 @@ step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref3)), direction="forward")
 anova(backwards3, construction_ref3, test = 'LRT')
 #forward= same as backwards 
+
 ####ROC CURVES to check better model####
 # the predicted probabilities go first, the actual outcomes (as a factor) second
 pred <- prediction(fitted(backwards), factor(backwards$y))
@@ -191,7 +234,166 @@ auc
 
 ####FINAL MODEL IS MODEL 3######
 final_model = glm(Won~ Region_2 +Estimated_Cost__Millions_ +Sector2+
-                     Competitor_B + Competitor_F  +
+                    Competitor_B + Competitor_F  +
                     Competitor_H +  Competitor_J,data = construction_train,
                   family = binomial(link = "logit"))
 summary(final_model)
+
+###########################################################################################################################
+#########################   GOODNESS OF FIT MODEL 3  ########################################
+#test for linear separation
+construction_ref3_sep <- glm(Won ~ Region_of_Country + Sector+ 
+                               Number_of_Competitor_Bids + Competitor_B + Competitor_E + Competitor_F  +
+                               Competitor_H + Competitor_J,
+                             data = construction_train,
+                             family = binomial(link = "logit"),
+                             method = "detect_separation")
+construction_ref3_sep
+#result: FALSE, conclude NO linear separation
+
+#create dataframe of variables in final model: construction_train_keep
+keep_vars3 <- c('Won','Region_of_Country','Sector',
+                'Number_of_Competitor_Bids','Competitor_B','Competitor_E','Competitor_F',
+                'Competitor_H','Competitor_J')
+construction_train_keep3 <- construction_train[, which(names(construction_train) %in% keep_vars3)]
+
+#Check the linearity assumption for any continuous variables
+visreg(backwards3, "Number_of_Competitor_Bids", gg = TRUE, points = list(col = "black")) +
+  geom_smooth(col = "red", fill = "red") + theme_bw() +
+  labs(title = "Partial Residual Plot for Number_of_Competitor_Bids",
+       x = "Number_of_Competitor_Bids", y = "Partial (deviance) Residuals")
+#looks very good, almost perfectly linear
+
+#checking for interactions among the main effects
+backwards3_interactions <- glm(Won ~ Region_of_Country + Sector + Number_of_Competitor_Bids + Competitor_B + 
+                                 Competitor_E + Competitor_F + Competitor_H + Competitor_J + 
+                                 Competitor_J*Competitor_B,
+                               data = construction_train,
+                               family = binomial(link = "logit"))
+AIC(backwards3) - AIC(backwards3_interactions)
+#AIC decrease of -1.9 when INCLUDING interaction term
+#conclude: interaction hurts model
+
+#Check for influential observations 
+plot(backwards3, 4, id.n=5)
+outlier_index = c(1,36,131,133,303) 
+as.data.frame(construction_train_keep3[outlier_index,])
+summary(construction_train_keep3)
+#80% of outliers won in subset of influention obs. Total mean is 15%
+
+#dfbetas
+influence.measures(backwards3)
+
+#loop that plots dfbeta for each predictor
+for (i in colnames(construction_train_keep3)){
+  dfbetasPlots(backwards3, terms = i, id.n = 5,
+               col = ifelse(insur_fit$y == 1, "red", "blue"))
+}
+outlier_index = c(340,131,348,36,110,303,239,133,372,353,210)
+summary(as.data.frame(construction_train_keep3[outlier_index,]))
+summary(construction_train_keep3)
+#number of competitor bids in outliers mean is half that of full set
+#won is 64% in outliers, 15% in full set
+
+
+
+###########################################################################################################################
+#########################   Validation for  MODEL 3  ########################################
+
+#Getting predicted probabilities
+p<- predict(final_model, newdata = construction_valid, type="response")
+
+#Calculate youdens Index
+pred <- prediction(p, construction_valid$Won)
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+classif_table <- data.frame(threshold = perf@alpha.values[[1]],
+                            tpr = perf@y.values[[1]],
+                            tnr = 1 - perf@x.values[[1]])
+classif_table$youdenJ <- with(classif_table, 2*(.61*tpr + 0.39*tnr) - 1) #weighted tpr the same a tnr (remember that .7 and .69 were very different)
+classif_table[which.max(classif_table$youdenJ),] # Find row with max
+#row   threshold       tpr      tnr     youdenJ
+#41     0.1587397 0.8571429 0.880597 0.7377399 - prior
+#35 0.2537603 0.7142857 0.8955224 0.6098081 --- 50/50
+#49 0.1390094 0.7857143 0.8059701 0.5876333 --- 60/40
+#82 0.05013854 0.9285714 0.5895522 0.5927079 ---61/39
+
+# Actual classification table (confusion Matrix)
+df <- data.frame(y = construction_valid$Won,
+                 phat = p)
+df_new<- data.frame(y = construction_valid$Won,
+                    yhat = p)
+for (i in 1:length(df$phat)){
+  if (df$phat[i]>= classif_table[which.max(classif_table$youdenJ),1]) {
+    df_new$yhat[i]=1
+  }
+  else{
+    df_new$yhat[i]=0
+  }
+}
+xtabs(~ yhat+ y, data = df_new) 
+#prior
+#    y
+#yhat  0   1
+#0   118   4
+#1    16  24
+
+
+
+
+#Coefficient of Discrimination
+D <- mean(fitted(final_model)[final_model$y== 1]) - mean(fitted(final_model)[final_model$y == 0])
+D 
+#discrimination - 0.6789528 now 0.4093198
+# difference of 67.8% in average predictive probabilities between a company winning a bet or not
+
+
+# Check for c-statistic and Somer's D 
+rcorr.cens(fitted(final_model), final_model$y)[-c(5, 6, 9)] # Ignoring unnecessary output
+#   C Index            Dxy           S.D.              n Relevant Pairs     Concordant 
+#0.97083904     0.94167807     0.02538679   381.00000000 37996.00000000 36888.00000000 - prior
+# 0.90383198     0.80766396     0.03895157   381.00000000 37996.00000000 34342.00000000 -now
+# For all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 97% of the time.
+
+
+#Brier score calculation 
+brier_score <- function(obj, new_x = NULL, new_y = NULL){
+  if(is.null(new_y)){
+    y <- obj$y
+  } else {
+    y <- new_y
+  }
+  p_obs <- mean(y)
+  p <- predict(obj, newdata = new_x, type = "response")
+  # brier score
+  brier_score <- mean((y - p)^2, na.rm = TRUE)
+  # max brier score is just the observed proportion
+  brier_max <- p_obs*((1 - p_obs)^2) + (1 - p_obs)*(p_obs^2)
+  # scaled brier score
+  # ranges from 0 to 1---lower is better
+  brier_scaled <- brier_score/brier_max
+  # essentially, 1 - brier_scaled is the %improvement over null model
+  res <- data.frame(brier_score = brier_score,
+                    brier_max = brier_max,
+                    brier_scaled = brier_scaled)
+  res
+}
+
+brier_score(final_model, construction_valid, construction_valid$Won)
+#brier_score brier_max brier_scaled
+#  0.08629495  0.142966    0.6036046 --- prior
+# so our model is 39.6% better than the null model
+#0.09309217  0.142966    0.6511489 --- new
+
+### observed calibration curve
+obs.phat <- data.frame(y = final_model$y, phat = fitted(final_model))
+obs.phat <- arrange(obs.phat, phat)
+ggplot(data = obs.phat) +
+  geom_point(mapping = aes(x = phat, y = y), color = "black") +
+  geom_smooth(mapping = aes(x = phat, y = y), color = "red") +
+  geom_abline(intercept = 0, slope = 1, linetype = 2, color = "black") +
+  labs(x = "predicted probability", y = "observed frequency",
+       title = "calibration curve") +
+  scale_x_continuous(breaks = seq(0, 0.8, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1)) +
+  lims(x = c(0, 0.8), y = c(0, 1)) +
+  theme_bw()
