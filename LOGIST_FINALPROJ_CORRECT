@@ -326,10 +326,10 @@ perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 classif_table <- data.frame(threshold = perf@alpha.values[[1]],
                             tpr = perf@y.values[[1]],
                             tnr = 1 - perf@x.values[[1]])
-classif_table$youdenJ <- with(classif_table, 2*(.33*tpr + 0.67*tnr) - 1) #weighted tpr the same a tnr 
+classif_table$youdenJ <- with(classif_table, 2*(.32*tpr + 0.68*tnr) - 1) #weighted tpr the same a tnr 
 classif_table[which.max(classif_table$youdenJ),] # Find row with max
 #row   threshold       tpr      tnr     youdenJ
-#33 0.2969988 0.6785714 0.9029851 0.6578571
+#33 0.2969988 0.6785714 0.9029851 0.6623454
 
 # Actual classification table (confusion Matrix)
 df <- data.frame(y = construction_valid$Won,
