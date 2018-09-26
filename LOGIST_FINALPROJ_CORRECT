@@ -394,3 +394,12 @@ ggplot(data = obs.phat) +
   scale_y_continuous(breaks = seq(0, 1, by = 0.1)) +
   lims(x = c(0, 0.8), y = c(0, 1)) +
   theme_bw()
+  
+  ####ROC CURVES####
+# then we can plot
+plot(perf, colorize = TRUE)
+# add 45-degree line (random guessing)
+abline(a = 0, b = 1, lty = 2)
+# AUC
+auc <- performance(pred, measure = "auc")@y.values
+auc
