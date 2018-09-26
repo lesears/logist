@@ -297,6 +297,26 @@ summary(construction_train_keep3)
 ###########################################################################################################################
 #########################   Validation for  MODEL 3  ########################################
 
+library(car)
+library(gmodels)
+library(forecast)
+library(haven)
+library(fma)
+library(expsmooth)
+library(lmtest)
+library(zoo)
+library(seasonal)
+library(descr)
+library(sas7bdat)
+library(brglm2)
+library(visreg)
+library(ggplot2)
+library(tidyverse)
+library(MASS)
+library(ROCR)
+library(DescTools)
+library(Hmisc)
+
 #Getting predicted probabilities
 p<- predict(final_model, newdata = construction_valid, type="response")
 
@@ -306,13 +326,10 @@ perf <- performance(pred, measure = "tpr", x.measure = "fpr")
 classif_table <- data.frame(threshold = perf@alpha.values[[1]],
                             tpr = perf@y.values[[1]],
                             tnr = 1 - perf@x.values[[1]])
-classif_table$youdenJ <- with(classif_table, 2*(.61*tpr + 0.39*tnr) - 1) #weighted tpr the same a tnr (remember that .7 and .69 were very different)
+classif_table$youdenJ <- with(classif_table, 2*(.33*tpr + 0.67*tnr) - 1) #weighted tpr the same a tnr 
 classif_table[which.max(classif_table$youdenJ),] # Find row with max
 #row   threshold       tpr      tnr     youdenJ
-#41     0.1587397 0.8571429 0.880597 0.7377399 - prior
-#35 0.2537603 0.7142857 0.8955224 0.6098081 --- 50/50
-#49 0.1390094 0.7857143 0.8059701 0.5876333 --- 60/40
-#82 0.05013854 0.9285714 0.5895522 0.5927079 ---61/39
+#33 0.2969988 0.6785714 0.9029851 0.6578571
 
 # Actual classification table (confusion Matrix)
 df <- data.frame(y = construction_valid$Won,
@@ -328,28 +345,23 @@ for (i in 1:length(df$phat)){
   }
 }
 xtabs(~ yhat+ y, data = df_new) 
-#prior
 #    y
 #yhat  0   1
-#0   118   4
-#1    16  24
-
-
+#0    121  9
+#1    13  19
 
 
 #Coefficient of Discrimination
 D <- mean(fitted(final_model)[final_model$y== 1]) - mean(fitted(final_model)[final_model$y == 0])
 D 
-#discrimination - 0.6789528 now 0.4093198
-# difference of 67.8% in average predictive probabilities between a company winning a bet or not
+#discrimination - 0.3551441
 
 
 # Check for c-statistic and Somer's D 
 rcorr.cens(fitted(final_model), final_model$y)[-c(5, 6, 9)] # Ignoring unnecessary output
 #   C Index            Dxy           S.D.              n Relevant Pairs     Concordant 
-#0.97083904     0.94167807     0.02538679   381.00000000 37996.00000000 36888.00000000 - prior
-# 0.90383198     0.80766396     0.03895157   381.00000000 37996.00000000 34342.00000000 -now
-# For all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 97% of the time.
+#    0.88088220     0.76176440     0.04387805   381.00000000 37996.00000000 33470.00000000 
+# For all possible (1,0) pairs, the model assigned the higher predictive probability to the 1 88% of the time.
 
 
 #Brier score calculation 
@@ -377,9 +389,7 @@ brier_score <- function(obj, new_x = NULL, new_y = NULL){
 
 brier_score(final_model, construction_valid, construction_valid$Won)
 #brier_score brier_max brier_scaled
-#  0.08629495  0.142966    0.6036046 --- prior
-# so our model is 39.6% better than the null model
-#0.09309217  0.142966    0.6511489 --- new
+#    0.09605723  0.142966    0.6718886
 
 ### observed calibration curve
 obs.phat <- data.frame(y = final_model$y, phat = fitted(final_model))
@@ -394,8 +404,8 @@ ggplot(data = obs.phat) +
   scale_y_continuous(breaks = seq(0, 1, by = 0.1)) +
   lims(x = c(0, 0.8), y = c(0, 1)) +
   theme_bw()
-  
-  ####ROC CURVES####
+
+####ROC CURVES####
 # then we can plot
 plot(perf, colorize = TRUE)
 # add 45-degree line (random guessing)
