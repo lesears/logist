@@ -157,28 +157,27 @@ construction_valid$Sector2[construction_valid$Sector == '6'] <- "Sector 6"
 prop.table(table(construction_valid$Sector2, construction_valid$Won),margin = 1)
 table(construction_valid$Sector2, construction_valid$Won)
 #############################model building#########################################################################################
-#install.packages('brglm')
-#install.packages('MASS')
-#install.packages('tidyverse')
-#install.packages('caret')
+install.packages('brglm')
+install.packages('MASS')
+install.packages('tidyverse')
+install.packages('caret')
 library(caret)
 library(brglm)
 library(tidyverse)
 library(MASS)
-
 ########Model 1 with Sector and Region_2 to eliminate multicollinearity w/o Estimated_Cost__Millions_ + Estimated_Years_to_Complete ######
 construction_ref <- glm(Won ~  Region_2 +Estimated_Cost__Millions_ + Estimated_Years_to_Complete + Sector2 + Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                           Competitor_H + Competitor_I + Competitor_J, data = construction_train,
                         family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref)
 backwards = step(construction_ref, trace = 0)
-#AIC = 144 and all p-values significant
+#AIC = 226
 forwards
 nothing <- glm(Won ~ 1,data = construction_train,family=binomial)
 step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref)), direction="forward")
 #forward= same as backwards 
-#(AIC 148)
+
 
 #same model backwards and forwards using AIC
 anova(backwards,construction_ref, test ='LRT')
@@ -186,32 +185,31 @@ anova(backwards,construction_ref, test ='LRT')
 
 ########Model 2: without sector#########
 construction_ref2 <- glm(Won ~ Region_of_Country +Estimated_Cost__Millions_ + Estimated_Years_to_Complete+
-                           Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
+                            Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
                            Competitor_H + Competitor_I + Competitor_J, data = construction_train,
-                         family = binomial(link = "logit"))#control.glm = control)
+                        family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref2)#
 backwards2 = step(construction_ref2)
 anova(backwards2,construction_ref2, test = 'LRT')
 #better than reference
 step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref2)), direction="forward")
-#same as backwords AIC = 183
+#same as backwords AIC = 230
 
 #####Model 3 regular with region_of_country and sector#######
-construction_ref3 <- glm(Won ~  Region_of_Country + Sector+ Estimated_Cost__Millions_ + Estimated_Years_to_Complete+
-                           Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
-                           Competitor_H + Competitor_I + Competitor_J, data = construction_train,
-                         family = binomial(link = "logit"))#control.glm = control)
+construction_ref3 <- glm(Won ~  Region_of_Country +Sector+ Estimated_Cost__Millions_ + Estimated_Years_to_Complete+
+                          Competitor_A + Competitor_B + Competitor_E + Competitor_F  +
+                          Competitor_H + Competitor_I + Competitor_J, data = construction_train,
+                        family = binomial(link = "logit"))#control.glm = control)
 summary(construction_ref3)
 backwards3 = step(construction_ref3)
-#AIC 148
+#AIC 213
 #forwards
 nothing <- glm(Won ~ 1,data = construction_train,family=binomial)
 step(nothing,
      scope=list(lower=formula(nothing),upper=formula(construction_ref3)), direction="forward")
 anova(backwards3, construction_ref3, test = 'LRT')
 #forward= same as backwards 
-
 ####ROC CURVES to check better model####
 # the predicted probabilities go first, the actual outcomes (as a factor) second
 pred <- prediction(fitted(backwards), factor(backwards$y))
@@ -231,15 +229,14 @@ abline(a = 0, b = 1, lty = 2)
 # AUC
 auc <- performance(pred, measure = "auc")@y.values
 auc
+#remove REGION, COMP. F,H,I P-vlaues not sig and remove 
 
-####FINAL MODEL IS MODEL 3######
-final_model = glm(Won~ Region_2 +Estimated_Cost__Millions_ +Sector2+
-                    Competitor_B + Competitor_F  +
-                    Competitor_H +  Competitor_J,data = construction_train,
-                  family = binomial(link = "logit"))
-summary(final_model)
-
-###########################################################################################################################
+####FINAL MODEL is built off of one######
+final_model <- glm(Won ~   Sector2+ Estimated_Cost__Millions_ + 
+                     Competitor_B + Competitor_E  +
+                     Competitor_J, data = construction_train,
+                   family = binomial(link = "logit"))#control.glm = control)
+anova(final_model,construction_ref, test = 'LRT')
 #########################   GOODNESS OF FIT MODEL 3  ########################################
 #test for linear separation
 construction_ref3_sep <- glm(Won ~ Region_of_Country + Sector+ 
