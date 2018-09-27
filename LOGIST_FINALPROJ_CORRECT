@@ -237,11 +237,12 @@ final_model <- glm(Won ~   Sector2+ Estimated_Cost__Millions_ +
                      Competitor_J, data = construction_train,
                    family = binomial(link = "logit"))#control.glm = control)
 anova(final_model,construction_ref, test = 'LRT')
-#########################   GOODNESS OF FIT MODEL 3  ########################################
+
+#########################   GOODNESS OF FIT final_model ########################################
 #test for linear separation
-construction_ref3_sep <- glm(Won ~ Region_of_Country + Sector+ 
-                               Number_of_Competitor_Bids + Competitor_B + Competitor_E + Competitor_F  +
-                               Competitor_H + Competitor_J,
+final_model_sep <- glm(Won ~ Won ~   Sector2+ Estimated_Cost__Millions_ + 
+                         Competitor_B + Competitor_E  +
+                         Competitor_J,
                              data = construction_train,
                              family = binomial(link = "logit"),
                              method = "detect_separation")
@@ -249,50 +250,54 @@ construction_ref3_sep
 #result: FALSE, conclude NO linear separation
 
 #create dataframe of variables in final model: construction_train_keep
-keep_vars3 <- c('Won','Region_of_Country','Sector',
-                'Number_of_Competitor_Bids','Competitor_B','Competitor_E','Competitor_F',
-                'Competitor_H','Competitor_J')
+keep_vars3 <- c('Won','Sector2','Estimated_Cost__Millions_',
+                  'Competitor_B','Competitor_E',
+                  'Competitor_J')
 construction_train_keep3 <- construction_train[, which(names(construction_train) %in% keep_vars3)]
 
 #Check the linearity assumption for any continuous variables
-visreg(backwards3, "Number_of_Competitor_Bids", gg = TRUE, points = list(col = "black")) +
+visreg(final_model, "Estimated_Cost__Millions_", gg = TRUE, points = list(col = "black")) +
   geom_smooth(col = "red", fill = "red") + theme_bw() +
-  labs(title = "Partial Residual Plot for Number_of_Competitor_Bids",
-       x = "Number_of_Competitor_Bids", y = "Partial (deviance) Residuals")
+  labs(title = "Partial Residual Plot for Estimated Cost in Millions ",
+       x = "Estimated Cost in Millions ", y = "Partial (deviance) Residuals")
 #looks very good, almost perfectly linear
 
 #checking for interactions among the main effects
-backwards3_interactions <- glm(Won ~ Region_of_Country + Sector + Number_of_Competitor_Bids + Competitor_B + 
-                                 Competitor_E + Competitor_F + Competitor_H + Competitor_J + 
-                                 Competitor_J*Competitor_B,
-                               data = construction_train,
-                               family = binomial(link = "logit"))
-AIC(backwards3) - AIC(backwards3_interactions)
-#AIC decrease of -1.9 when INCLUDING interaction term
-#conclude: interaction hurts model
+final_model_int <- glm(Won ~   Sector2+ Estimated_Cost__Millions_ + 
+                         Competitor_B + Competitor_E  +
+                         Competitor_J+ Competitor_J*Competitor_E,
+                       data = construction_train,
+                       family = binomial(link = "logit"))
+AIC(final_model)
+AIC(final_model_int)
+#interaction term is not significant
+#AIC barely changing by adding interaction
+#conclude: relationship is additive, not interactions necessary
 
 #Check for influential observations 
-plot(backwards3, 4, id.n=5)
-outlier_index = c(1,36,131,133,303) 
-as.data.frame(construction_train_keep3[outlier_index,])
+plot(final_model, 4, id.n=6)
+outlier_index = c(36,54,271,294,303,348) 
+summary(as.data.frame(construction_train_keep3[outlier_index,]))
 summary(construction_train_keep3)
-#80% of outliers won in subset of influention obs. Total mean is 15%
+#outlier group contains max Estimated_Cost__Millions_
+#Estimated_Cost__Millions_ mean is nearly double in outliers
+#competitor E bid everytime in outliers
+#won 67% outliers vs 15% in full set
 
 #dfbetas
-influence.measures(backwards3)
+influence.measures(final_model)
 
 #loop that plots dfbeta for each predictor
 for (i in colnames(construction_train_keep3)){
-  dfbetasPlots(backwards3, terms = i, id.n = 5,
+  dfbetasPlots(final_model, terms = i, id.n = 8,
                col = ifelse(insur_fit$y == 1, "red", "blue"))
 }
-outlier_index = c(340,131,348,36,110,303,239,133,372,353,210)
+outlier_index = c(3,9,23,44,54,59,73,131,133,134,141,150,164,201,257,271,
+                  300,324,328,348,366,371)
 summary(as.data.frame(construction_train_keep3[outlier_index,]))
 summary(construction_train_keep3)
-#number of competitor bids in outliers mean is half that of full set
-#won is 64% in outliers, 15% in full set
-
-
+#mean Estimated_Cost__Millions_ 48% higher in outliers
+#2.8 times as many bids won in outliers than full set
 
 ###########################################################################################################################
 #########################   Validation for  MODEL 3  ########################################
