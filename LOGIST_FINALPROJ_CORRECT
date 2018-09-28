@@ -300,7 +300,7 @@ summary(construction_train_keep3)
 #2.8 times as many bids won in outliers than full set
 
 ###########################################################################################################################
-#########################   Validation for  MODEL 3  ########################################
+#########################   Validation for  final_model  ########################################
 
 library(car)
 library(gmodels)
