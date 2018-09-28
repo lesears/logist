@@ -58,8 +58,6 @@ summary(construction_ref)
 vif(construction_ref)# No more multicollinearity present
 
 
-
-
 hist(construction$Competitor_C, labels = TRUE) # Bid on 5.6% of total projects
 hist(construction$Competitor_D, labels = TRUE) # Bid on 10.6% of total projects
 # All other variables seem to exhibit appropriate distributions. None seem to require being binned into categories, for example...
@@ -125,8 +123,6 @@ prop.table(table(construction_valid$Region_2, construction_valid$Won),margin = 1
 table(construction_valid$Region_2, construction_valid$Won)
 
 
-
-
 ##Recategorizing Sector for training:
 class(construction_train$Sector)
 
@@ -141,8 +137,6 @@ construction_train$Sector2[construction_train$Sector == '6'] <- "Sector 6"
 prop.table(table(construction_train$Sector2, construction_train$Won),margin = 1)
 table(construction_train$Sector2, construction_train$Won)
 
-
-
 ##Recategorizing Sector for validation:
 class(construction_valid$Sector)
 
@@ -156,6 +150,8 @@ construction_valid$Sector2[construction_valid$Sector == '6'] <- "Sector 6"
 
 prop.table(table(construction_valid$Sector2, construction_valid$Won),margin = 1)
 table(construction_valid$Sector2, construction_valid$Won)
+
+
 #############################model building#########################################################################################
 install.packages('brglm')
 install.packages('MASS')
@@ -255,7 +251,6 @@ diff(predict(final_model, newdata = new1, type = "response"))
 
 
 
-
 #########################   GOODNESS OF FIT final_model ########################################
 #test for linear separation
 final_model_sep <- glm(Won ~ Won ~   Sector2+ Estimated_Cost__Millions_ + 
@@ -316,6 +311,7 @@ summary(as.data.frame(construction_train_keep3[outlier_index,]))
 summary(construction_train_keep3)
 #mean Estimated_Cost__Millions_ 48% higher in outliers
 #2.8 times as many bids won in outliers than full set
+
 
 ###########################################################################################################################
 #########################   Validation for  final_model  ########################################
