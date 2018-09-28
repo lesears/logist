@@ -238,6 +238,24 @@ final_model <- glm(Won ~   Sector2+ Estimated_Cost__Millions_ +
                    family = binomial(link = "logit"))#control.glm = control)
 anova(final_model,construction_ref, test = 'LRT')
 
+
+
+####Comparing Scenarios!
+summary(compare_set)
+new1 <- data.frame(Sector2 = c("Sector 6","Sector 2"), Estimated_Cost__Millions_ = c(145.8, 145.8), 
+                   Competitor_B = c(0,0), 
+                   Competitor_E = c(0,0), Competitor_J = c(1,0))
+
+exp(predict(final_model, newdata = new1, type = "link")) # Gets the prediction for each individual new test case.
+
+exp(diff(predict(final_model, newdata = new1, type = "link"))) # Interpretation of test cases - An average person is 6.86 times less likely to have an annuity than someone who is average except for having a CD with balance $20,000 and an MM.
+
+# Probabilities
+diff(predict(final_model, newdata = new1, type = "response"))
+
+
+
+
 #########################   GOODNESS OF FIT final_model ########################################
 #test for linear separation
 final_model_sep <- glm(Won ~ Won ~   Sector2+ Estimated_Cost__Millions_ + 
